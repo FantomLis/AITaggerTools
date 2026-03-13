@@ -15,7 +15,6 @@ internal static class Executable
         {
             string name = parseResult.GetValue(inputOption)!;
             string endpoint = parseResult.GetValue(endpointOption)!;
-            IXmpMeta metadata = XmpManager.LoadFile(name);
             switch (Path.GetExtension(name).Replace(".", ""))
             {
                 case "png":
@@ -31,7 +30,7 @@ internal static class Executable
                     Log.Warning($"File {name} can be unsupported. Be aware of that.");
                     break;
             }
-            if (GenerateDescription(metadata, name, endpoint, parseResult.GetValue<string?> (backupOption))) Log.Information("Done.");
+            if (GenerateDescription(name, endpoint, parseResult.GetValue<string?> (backupOption))) Log.Information("Done.");
         });
 
         return rootCommand.Parse(args).Invoke();
@@ -82,17 +81,19 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static bool GenerateDescription(IXmpMeta metadata, string name, string endpoint, string? backup)
+    private static bool GenerateDescription(string name, string endpoint, string? backup)
     {
-        Log.Debug("All properties: ");
-        foreach (var property in metadata.Properties)
-            Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
-        Log.Debug("============================");
-        
         try
         {
             var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
-            XmpManager.LoadFile(name).ApplyDataInDescription(apiResponse.EndpointId,
+            IXmpMeta xmpMeta = XmpManager.LoadFile(name);
+            
+            Log.Debug("All properties: ");
+            foreach (var property in xmpMeta.Properties)
+                Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
+            Log.Debug("============================");
+            
+            xmpMeta.ApplyDataInDescription(apiResponse.EndpointId,
                 apiResponse.Data).SaveFile(name,(backup != null), backup ?? "");
         }
         catch (AggregateException ex)
