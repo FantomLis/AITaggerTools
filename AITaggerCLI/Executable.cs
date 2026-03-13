@@ -85,7 +85,6 @@ internal static class Executable
     {
         try
         {
-            var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
             IXmpMeta xmpMeta = XmpManager.LoadFile(name);
             
             Log.Debug("All properties: ");
@@ -93,7 +92,9 @@ internal static class Executable
                 Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
             Log.Debug("============================");
             
-            xmpMeta.ApplyDataInDescription(apiResponse.EndpointId,
+            var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
+            
+            xmpMeta.ApplyTags(apiResponse.EndpointId,
                 apiResponse.Data).SaveFile(name,(backup != null), backup ?? "");
         }
         catch (XmpException ex)

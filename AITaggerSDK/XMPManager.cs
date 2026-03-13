@@ -8,21 +8,7 @@ public static class XmpManager
 {
     public static IXmpMeta LoadFile(string name)
     {
-        // I don't want to create it from scratch.
-        IXmpMeta xmp = XmpMetaFactory.ParseFromString(
-            @"<?xpacket begin=""﻿"" id=""W5M0MpCehiHzreSzNTczkc9d""?>
-<x:xmpmeta xmlns:x=""adobe:ns:meta/"" x:xmptk=""Adobe XMP Core 6.1.10"">
-  <rdf:RDF xmlns:rdf=""http://www.w3.org/1999/02/22-rdf-syntax-ns#"">
-    <rdf:Description rdf:about=""""
-        xmlns:dc=""http://purl.org/dc/elements/1.1/"">
-      <dc:description>
-        <rdf:Alt>
-        
-        </rdf:Alt>
-      </dc:description>
-    </rdf:Description>
-  </rdf:RDF>
-</x:xmpmeta>");
+        IXmpMeta xmp = XmpMetaFactory.Create();
         
         string file = ToXmpFileName(name);
         if (File.Exists(file))
@@ -30,9 +16,57 @@ public static class XmpManager
             Log.Debug($"Found file {file}, loading.");
             using (var stream = File.OpenRead(file))
                 xmp = XmpMetaFactory.Parse(stream);
+            
         }
         Log.Debug($"Done LoadFile for {name}");
         return xmp;
+    }
+    
+    public static IXmpMeta ApplyTag(this IXmpMeta xmpMeta, string id, string tag)
+    {
+        xmpMeta.AppendArrayItem(DigikamNs, DigikamTagsList, new PropertyOptions()
+        {
+            IsArray = true
+        }, tag, new PropertyOptions());
+        return xmpMeta;
+    }
+
+    public static IXmpMeta ApplyUniqueTag(this IXmpMeta xmpMeta, string id, string tag)
+    {
+        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) ApplyTag(xmpMeta, id, tag);
+        for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        {
+            if (xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value == tag) return xmpMeta;
+        }
+        ApplyTag(xmpMeta, id, tag);
+        return xmpMeta;
+    }
+
+    const string DigikamNs = "http://www.digikam.org/ns/1.0/";
+    private const string DigikamTagsList = "digiKam:TagsList";
+
+    public static IXmpMeta ApplyTags (this IXmpMeta xmpMeta, string id, params string[] tags)
+    {
+        foreach (var tag in tags)
+        {
+            xmpMeta.ApplyTag(id, tag);
+        }
+
+        return xmpMeta;
+    }
+    public static IXmpMeta ApplyUniqueTags(this IXmpMeta xmpMeta, string id,  params string[] tags)
+    {
+        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) ApplyTags(xmpMeta, id, tags);
+        List<string> uniqueTags = tags.ToList();
+        for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        {
+            var tagValInMeta = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+            if (tags.Contains(tagValInMeta))
+                uniqueTags.Remove(tagValInMeta);
+        }
+
+        ApplyTags(xmpMeta, id, uniqueTags.ToArray());
+        return xmpMeta;
     }
 
     public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool backupFile = true, string backupPath = "")
