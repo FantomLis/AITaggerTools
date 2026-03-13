@@ -14,9 +14,9 @@ internal static class Executable
             .MinimumLevel.Debug()
             #endif
             .WriteTo.Console().CreateLogger();
-        RootCommand rootCommand = new("CLI-tool for AI description applying.\n" +
+        RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
-                                      "Requires AIDescApplier REST API endpoint to send your images/videos.");
+                                      "Requires AITagger REST API endpoint to send your images/videos.");
 
         Option<string> inputOption = new("--input", "-i")
         {
