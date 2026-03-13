@@ -57,6 +57,8 @@ public static class XmpManager
 
     const string _idStructure = "\n{0}: ";
     
+    
+    [Obsolete("Putting search data in description is deprecated. Use ApplyTags instead.")]
     public static IXmpMeta ApplyDataInDescription(this IXmpMeta metadata, string id, string data)
     {
         string currentDesc = string.Empty;
