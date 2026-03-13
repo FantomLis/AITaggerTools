@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using XmpCore;
+using XmpCore.Options;
 
 namespace AITaggerSDK;
 
@@ -50,7 +51,11 @@ public static class XmpManager
             File.Delete(file);
         }
         Log.Debug($"Writing {file}.");
-        using (var fileIo = File.Create(file)) XmpMetaFactory.Serialize(xmpMeta, fileIo);
+        using (var fileIo = File.Create(file)) XmpMetaFactory.Serialize(xmpMeta, fileIo, new SerializeOptions()
+        {
+            // For some reason, padding in this lib works weird when padding is zero 
+            Padding = 1
+        });
         Log.Debug($"Done SaveFile for {name}");
         return xmpMeta;
     }
