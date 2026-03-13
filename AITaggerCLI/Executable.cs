@@ -10,7 +10,7 @@ internal static class Executable
     public static int Main(string[] args)
     {
         SetupLogger();
-        var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, out var backupOption);
+        var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, out var backupOption, out var quickOption);
         rootCommand.SetAction(parseResult =>
         {
             string name = parseResult.GetValue(inputOption)!;
@@ -30,7 +30,8 @@ internal static class Executable
                     Log.Warning($"File {name} can be unsupported. Be aware of that.");
                     break;
             }
-            if (GenerateDescription(name, endpoint, parseResult.GetValue<string?> (backupOption))) Log.Information("Done.");
+            if (GenerateDescription(name, endpoint, parseResult.GetValue<string?> (backupOption), 
+                    parseResult.GetValue<bool>(quickOption))) Log.Information("Done.");
         });
 
         return rootCommand.Parse(args).Invoke();
@@ -46,7 +47,7 @@ internal static class Executable
     }
 
     private static RootCommand CreateRootCommand(out Option<string> inputOption, out Option<string> endpointOption,
-        out Option<string> xmpFileLocationOption, out Option<string?> backupOption)
+        out Option<string> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -73,29 +74,47 @@ internal static class Executable
             Required = false,
             DefaultValueFactory = _ => null
         };
+        quickOption = new("--quick-apply", "-q", "-quick")
+        {
+            Description = "Checks if any tag in .xmp file has endpoint id and skips file if so.",
+            Required = false,
+            DefaultValueFactory = _ => true
+        };
 
         rootCommand.Options.Add(inputOption);
         rootCommand.Options.Add(endpointOption);
         rootCommand.Options.Add(xmpFileLocationOption);
         rootCommand.Options.Add(backupOption);
+        rootCommand.Options.Add(quickOption);
         return rootCommand;
     }
 
-    private static bool GenerateDescription(string name, string endpoint, string? backup)
+    private static bool GenerateDescription(string name, string endpoint, string? backup, bool quick = true)
     {
         try
         {
+            var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
+
+#if DEBUG
             IXmpMeta xmpMeta = XmpManager.LoadFile(name);
-            
             Log.Debug("All properties: ");
             foreach (var property in xmpMeta.Properties)
                 Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
             Log.Debug("============================");
+#else 
+            IXmpMeta xmpMeta;
+#endif
             
-            var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
+            xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(name, apiResponse.EndpointId, apiResponse.Data) 
+                : TagApplier.ApplyTagsToFile(name, apiResponse.EndpointId, apiResponse.Data);
             
-            xmpMeta.ApplyUniqueTags(apiResponse.EndpointId,
-                TagManager.ProcessTags(apiResponse.Data)).SaveFile(name,(backup != null), backup ?? "");
+#if DEBUG
+            Log.Debug("All properties after update: ");
+            foreach (var property in xmpMeta.Properties)
+                Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
+            Log.Debug("============================");
+#endif
+            xmpMeta.SaveFile(name, (backup != null), backup??"");
         }
         catch (XmpException ex)
         {

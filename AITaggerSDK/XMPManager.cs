@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using System.Diagnostics.Contracts;
+using Serilog;
 using XmpCore;
 using XmpCore.Options;
 
@@ -68,6 +69,22 @@ public static class XmpManager
         ApplyTags(xmpMeta, id, uniqueTags.ToArray());
         return xmpMeta;
     }
+
+    public static string[] GetAllTaggerTags(this IXmpMeta xmpMeta, string id)
+    {
+        List<string> tags = new();
+        for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        {
+            var arrVal = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+            if (arrVal.StartsWith(id+"/")) 
+                tags.Add(arrVal);
+        }
+
+        return tags.ToArray();
+    }
+
+    [Pure]
+    public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/'));
 
     public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool backupFile = true, string backupPath = "")
     {
