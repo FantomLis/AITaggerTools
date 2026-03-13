@@ -96,6 +96,12 @@ internal static class Executable
             xmpMeta.ApplyDataInDescription(apiResponse.EndpointId,
                 apiResponse.Data).SaveFile(name,(backup != null), backup ?? "");
         }
+        catch (XmpException ex)
+        {
+            Log.Error($"Failed to open Xmp file: {ex.Message}");
+            Log.Debug(ex, "");
+            return false;
+        }
         catch (AggregateException ex)
         {
             var msg = "Unhandled error";
