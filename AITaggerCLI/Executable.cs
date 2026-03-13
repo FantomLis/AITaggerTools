@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using AITaggerSDK;
+using Microsoft.VisualBasic;
 using Serilog;
 using XmpCore;
 
@@ -13,28 +14,42 @@ internal static class Executable
         var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, out var backupOption, out var quickOption);
         rootCommand.SetAction(parseResult =>
         {
-            string name = parseResult.GetValue(inputOption)!;
+            string path = parseResult.GetValue(inputOption)!;
             string endpoint = parseResult.GetValue(endpointOption)!;
-            switch (Path.GetExtension(name).Replace(".", ""))
+            List<string> files = new();
+            if (File.GetAttributes(path).HasFlag(FileAttribute.Directory))
             {
-                case "png":
-                case "jpg":
-                case "jpeg":
-                case "webp":
-                case "gif":
-                case "avi":
-                case "mp4":
-                case "mkv":
-                    break;
-                default:
-                    Log.Warning($"File {name} can be unsupported. Be aware of that.");
-                    break;
+                files.AddRange(Directory.GetFiles(path));
             }
-            if (GenerateDescription(name, endpoint, parseResult.GetValue<string?> (backupOption), 
-                    parseResult.GetValue<bool>(quickOption))) Log.Information("Done.");
+            else files.Add(path);
+
+            foreach (var file in files)
+            {
+                UseFile(file, endpoint, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption));
+            }
         });
 
         return rootCommand.Parse(args).Invoke();
+    }
+
+    private static void UseFile(string name, string endpoint, string? backup, bool quick)
+    {
+        switch (Path.GetExtension(name).Replace(".", ""))
+        {
+            case "png":
+            case "jpg":
+            case "jpeg":
+            case "webp":
+            case "gif":
+            case "avi":
+            case "mp4":
+            case "mkv":
+                break;
+            default:
+                Log.Warning($"File {name} can be unsupported. Be aware of that.");
+                break;
+        }
+        if (GenerateDescription(name, endpoint, backup, quick)) Log.Information("Done.");
     }
 
     private static void SetupLogger()
@@ -51,11 +66,12 @@ internal static class Executable
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
-                                      "Requires AITagger REST API endpoint to send your images/videos.");
+                                      "Requires AITagger REST API endpoint to send your images/videos.\n" +
+                                      "When using folder, tool will scan all folders inside and scan every file.");
 
         inputOption = new("--input", "-i")
         {
-            Description = "Input file (should be video or image)",
+            Description = "Input file (should be video or image) or folder",
             Required = true
         };
         endpointOption = new("--endpoint", "-e")
