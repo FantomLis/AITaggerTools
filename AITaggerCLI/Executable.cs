@@ -99,7 +99,7 @@ internal static class Executable
         }
         catch (XmpException ex)
         {
-            Log.Error($"Failed to open Xmp file: {ex.Message}");
+            Log.Error($"Failed to open .xmp file: {ex.Message}");
             Log.Debug(ex, "");
             return false;
         }
