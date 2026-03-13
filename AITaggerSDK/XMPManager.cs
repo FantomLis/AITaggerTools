@@ -27,7 +27,7 @@ public static class XmpManager
         xmpMeta.AppendArrayItem(DigikamNs, DigikamTagsList, new PropertyOptions()
         {
             IsArray = true
-        }, tag, new PropertyOptions());
+        }, $"{id}/{tag}", new PropertyOptions());
         return xmpMeta;
     }
 
