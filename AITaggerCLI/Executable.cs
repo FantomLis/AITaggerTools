@@ -94,7 +94,7 @@ internal static class Executable
             
             var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
             
-            xmpMeta.ApplyTags(apiResponse.EndpointId,
+            xmpMeta.ApplyUniqueTags(apiResponse.EndpointId,
                 apiResponse.Data).SaveFile(name,(backup != null), backup ?? "");
         }
         catch (XmpException ex)
