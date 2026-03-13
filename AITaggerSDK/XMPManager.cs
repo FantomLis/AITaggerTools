@@ -6,6 +6,9 @@ namespace AITaggerSDK;
 
 public static class XmpManager
 {
+    const string DigikamNs = "http://www.digikam.org/ns/1.0/";
+    const string DigikamTagsList = "digiKam:TagsList";
+    
     public static IXmpMeta LoadFile(string name)
     {
         IXmpMeta xmp = XmpMetaFactory.Create();
@@ -41,9 +44,6 @@ public static class XmpManager
         ApplyTag(xmpMeta, id, tag);
         return xmpMeta;
     }
-
-    const string DigikamNs = "http://www.digikam.org/ns/1.0/";
-    private const string DigikamTagsList = "digiKam:TagsList";
 
     public static IXmpMeta ApplyTags (this IXmpMeta xmpMeta, string id, params string[] tags)
     {
