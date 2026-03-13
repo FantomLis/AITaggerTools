@@ -50,14 +50,18 @@ public static class XmpManager
             File.Delete(file);
         }
         Log.Debug($"Writing {file}.");
-        using (var fileIO = File.Create(file)) XmpMetaFactory.Serialize(xmpMeta, fileIO);
+        using (var fileIo = File.Create(file)) XmpMetaFactory.Serialize(xmpMeta, fileIo);
         Log.Debug($"Done SaveFile for {name}");
         return xmpMeta;
     }
 
+    public static string ToXmpFileName(this string name)
+    {
+        return $"{name.Replace(".xmp", "")}.xmp";
+    }
+    
+    [Obsolete("IdStructure is part of ApplyDataInDescription and is deprecated.")]
     const string IdStructure = "\n{0}: ";
-    
-    
     [Obsolete("Putting search data in description is deprecated. Use ApplyTags instead.")]
     public static IXmpMeta ApplyDataInDescription(this IXmpMeta metadata, string id, string data)
     {
@@ -80,10 +84,5 @@ public static class XmpManager
         metadata.SetProperty(XmpConstants.NsDC,descPropName,currentDesc);
         metadata.SetQualifier(XmpConstants.NsDC, descPropName, XmpConstants.NsXml, XmpConstants.XmlLang, XmpConstants.XDefault);
         return metadata;
-    }
-
-    public static string ToXmpFileName(this string name)
-    {
-        return $"{name.Replace(".xmp", "")}.xmp";
     }
 }
