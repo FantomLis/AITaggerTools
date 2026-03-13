@@ -31,7 +31,7 @@ internal static class Executable
                     Log.Warning($"File {name} can be unsupported. Be aware of that.");
                     break;
             }
-            if (GenerateDescription(metadata, name, endpoint, parseResult, backupOption)) Log.Information("Done.");
+            if (GenerateDescription(metadata, name, endpoint, parseResult.GetValue<string?> (backupOption))) Log.Information("Done.");
         });
 
         return rootCommand.Parse(args).Invoke();
@@ -82,8 +82,7 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static bool GenerateDescription(IXmpMeta metadata, string name, string endpoint, ParseResult parseResult,
-        Option<string?> backupOption)
+    private static bool GenerateDescription(IXmpMeta metadata, string name, string endpoint, string? backup)
     {
         Log.Debug("All properties: ");
         foreach (var property in metadata.Properties)
@@ -93,9 +92,8 @@ internal static class Executable
         try
         {
             var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
-            var backupPath = parseResult.GetValue<string?>(backupOption);
             XmpManager.LoadFile(name).ApplyDataInDescription(apiResponse.EndpointId,
-                apiResponse.Data).SaveFile(name,(backupPath != null), backupPath ?? "");
+                apiResponse.Data).SaveFile(name,(backup != null), backup ?? "");
         }
         catch (AggregateException ex)
         {
