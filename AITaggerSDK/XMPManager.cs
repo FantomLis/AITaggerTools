@@ -23,7 +23,7 @@ public static class XmpManager
   </rdf:RDF>
 </x:xmpmeta>");
         
-        string file = ToXMPFileName(name);
+        string file = ToXmpFileName(name);
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, loading.");
@@ -36,14 +36,14 @@ public static class XmpManager
 
     public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool replaceFile = true, string backupPath = "")
     {
-        string file = ToXMPFileName(name);
+        string file = ToXmpFileName(name);
         if (string.IsNullOrWhiteSpace(backupPath)) backupPath = Path.GetDirectoryName(file)!;
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, cleaning up.");
             if (!replaceFile)
             {
-                var destFileName = ToXMPFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
+                var destFileName = ToXmpFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
                 File.Copy(file, destFileName);
                 Log.Debug($"Created file {destFileName} as backup.");
             }
@@ -55,7 +55,7 @@ public static class XmpManager
         return xmpMeta;
     }
 
-    const string _idStructure = "\n{0}: ";
+    const string IdStructure = "\n{0}: ";
     
     
     [Obsolete("Putting search data in description is deprecated. Use ApplyTags instead.")]
@@ -68,7 +68,7 @@ public static class XmpManager
             currentDesc = metadata.GetProperty(XmpConstants.NsDC, descPropName).Value;
         }
 
-        var idStr = string.Format(_idStructure, id);
+        var idStr = string.Format(IdStructure, id);
         if (currentDesc.Contains(idStr))
         {
             var startIndex = currentDesc.IndexOf(idStr, StringComparison.InvariantCulture);
@@ -82,7 +82,7 @@ public static class XmpManager
         return metadata;
     }
 
-    public static string ToXMPFileName(this string name)
+    public static string ToXmpFileName(this string name)
     {
         return $"{name.Replace(".xmp", "")}.xmp";
     }
