@@ -34,15 +34,16 @@ public static class XmpManager
         return xmp;
     }
 
-    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool replaceFile = true)
+    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool replaceFile = true, string backupPath = "")
     {
         string file = ToXMPFileName(name);
+        if (string.IsNullOrWhiteSpace(backupPath)) backupPath = Path.GetDirectoryName(file)!;
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, cleaning up.");
             if (!replaceFile)
             {
-                var destFileName = ToXMPFileName(Path.Combine(Path.GetDirectoryName(file), $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
+                var destFileName = ToXMPFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
                 File.Copy(file, destFileName);
                 Log.Debug($"Created file {destFileName} as backup.");
             }

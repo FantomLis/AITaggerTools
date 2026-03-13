@@ -33,17 +33,17 @@ internal static class Executable
             Description = "Target file for .xmp files",
             Required = false
         };
-        Option<bool> nonDestructiveUpdateOption = new("--nondestructive", "-nd")
+        Option<string?> backupOption = new("--backup", "-b")
         {
-            Description = "Move original file to other file.",
+            Description = "Move original file to other location with old_[DATE] prefix.",
             Required = false,
-            DefaultValueFactory = _ => false
+            DefaultValueFactory = _ => null
         };
 
         rootCommand.Options.Add(inputOption);
         rootCommand.Options.Add(endpointOption);
         rootCommand.Options.Add(xmpFileLocationOption);
-        rootCommand.Options.Add(nonDestructiveUpdateOption);
+        rootCommand.Options.Add(backupOption);
         rootCommand.SetAction(parseResult =>
         {
             string name = parseResult.GetValue(inputOption)!;
@@ -64,14 +64,14 @@ internal static class Executable
                     Log.Warning($"File {name} can be unsupported. Be aware of that.");
                     break;
             }
-            if (GenerateDescription(metadata, name, endpoint, parseResult, nonDestructiveUpdateOption)) Log.Information("Done.");
+            if (GenerateDescription(metadata, name, endpoint, parseResult, backupOption)) Log.Information("Done.");
         });
 
         return rootCommand.Parse(args).Invoke();
     }
 
     private static bool GenerateDescription(IXmpMeta metadata, string name, string endpoint, ParseResult parseResult,
-        Option<bool> nonDestructiveUpdateOption)
+        Option<string?> backupOption)
     {
         Log.Debug("All properties: ");
         foreach (var property in metadata.Properties)
@@ -81,9 +81,9 @@ internal static class Executable
         try
         {
             var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
+            var backupPath = parseResult.GetValue<string?>(backupOption);
             XmpManager.LoadFile(name).ApplyDataInDescription(apiResponse.EndpointId,
-                apiResponse.Data).SaveFile(name,
-                !parseResult.GetValue<bool>(nonDestructiveUpdateOption));
+                apiResponse.Data).SaveFile(name,(backupPath != null), backupPath ?? "");
         }
         catch (AggregateException ex)
         {
