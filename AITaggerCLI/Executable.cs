@@ -1,11 +1,9 @@
 ﻿using System.CommandLine;
-using System.CommandLine.Parsing;
-using DataProcessor;
+using AITaggerSDK;
 using Serilog;
-using Serilog.Core;
 using XmpCore;
 
-namespace TestFrontend;
+namespace AITaggerCLI;
 
 internal static class Executable
 {

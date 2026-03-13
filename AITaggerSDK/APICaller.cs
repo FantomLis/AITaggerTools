@@ -1,12 +1,6 @@
-﻿using System.Data;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Mime;
-using System.Text;
-using System.Text.Json;
-using Flurl;
+﻿using Flurl;
 
-namespace DataProcessor;
+namespace AITaggerSDK;
 
 public static class APICaller
 {

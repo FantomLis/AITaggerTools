@@ -1,6 +1,4 @@
-using System.Text;
-
-const string ApiId = "ExampleAPI";
+const string ApiId = "ExampleAITagger-API";
 
 var builder = WebApplication.CreateBuilder(args);
 

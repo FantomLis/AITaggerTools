@@ -1,10 +1,7 @@
-﻿using System.Data.SqlTypes;
-using System.Globalization;
-using Serilog;
+﻿using Serilog;
 using XmpCore;
-using XmpCore.Impl;
 
-namespace DataProcessor;
+namespace AITaggerSDK;
 
 public static class XmpManager
 {

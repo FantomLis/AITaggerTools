@@ -16,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DataProcessor\DataProcessor.csproj" />
+      <ProjectReference Include="..\AITaggerSDK\AITaggerSDK.csproj" />
     </ItemGroup>
 
 </Project>
