@@ -105,7 +105,7 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static bool GenerateDescription(string name, string endpoint, string? backup, bool quick = true)
+    private static bool GenerateDescription(string name, string endpoint, string? backup = null, bool quick = true)
     {
         try
         {
