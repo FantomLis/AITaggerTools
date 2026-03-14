@@ -21,10 +21,19 @@ internal static class Executable
                 files.AddRange(Directory.GetFiles(path));
             }
             else files.Add(path);
+
+            string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileLocationOption);
+            if (files.Count > 1 && xmpFileLocation != null)
+            {
+                Log.Error("--output option will be ignored, multiple files supplied.");
+                xmpFileLocation = null;
+            }
+            
             int fileCount = files.Count, fileSkipped = 0, currentFile = 0;
             foreach (var filepath in files)
             {
-                fileSkipped += UseFile(filepath, endpointUrl, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption)) 
+                fileSkipped += UseFile(filepath, endpointUrl, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption),
+                    xmpFileLocation) 
                     ? 1 : 0;
                 currentFile++;
                 var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
@@ -36,7 +45,7 @@ internal static class Executable
         return rootCommand.Parse(args).Invoke();
     }
 
-    private static bool UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true)
+    private static bool UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
     {
         switch (Path.GetExtension(filename).Replace(".", ""))
         {
@@ -55,7 +64,7 @@ internal static class Executable
         }
 
         try {
-            var isSkipped = GenerateDescription(filename, endpointUrl, backup, quick);
+            var isSkipped = GenerateDescription(filename, endpointUrl, backup, quick, saveFileName);
             Log.Information(isSkipped ? $"File {filename} skipped." : $"File {filename} done.");
             return isSkipped;
         }
@@ -100,7 +109,7 @@ internal static class Executable
     }
 
     private static RootCommand CreateRootCommand(out Option<string> inputOption, out Option<string> endpointOption,
-        out Option<string> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption)
+        out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -119,8 +128,9 @@ internal static class Executable
         };
         xmpFileLocationOption = new("--output", "-o")
         {
-            Description = "Target file for .xmp files",
-            Required = false
+            Description = "Target file for .xmp files. Will be ignored when multiple inputs or directory as input is used.",
+            Required = false,
+            DefaultValueFactory = _ => null
         };
         backupOption = new("--backup", "-b")
         {
@@ -143,7 +153,7 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static bool GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true)
+    private static bool GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true, string? saveFileName = null)
     {
         var apiResponse = APICaller.GenerateDescription(filename, endpointUrl).Result;
         IXmpMeta xmpMeta;
@@ -159,7 +169,7 @@ internal static class Executable
 #if DEBUG
         _DrawProperties(xmpMeta, "All properties after update: ");
 #endif
-        xmpMeta.SaveFile(filename, (backupPath != null), backupPath ?? "");
+        xmpMeta.SaveFile(saveFileName ?? filename, (backupPath != null), backupPath ?? "");
         return isSkipped;
     }
 #if DEBUG
