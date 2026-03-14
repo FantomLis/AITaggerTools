@@ -80,7 +80,7 @@ public static class XmpManager
     {
         if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return [];
         List<string> tags = new();
-        for (int i = 1; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        for (int i = 1; i <= xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
         {
             var arrVal = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
             if (arrVal.StartsWith(id+"/")) 
