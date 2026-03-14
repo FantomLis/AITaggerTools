@@ -33,7 +33,7 @@ internal class Program
             .WithName("SingleFileDescription");
         app.MapPost("/desc/bulk/upload", Upload)
             .WithName("BulkFileUpload");
-        app.MapPost("/desc/bulk/fetch", Fetch)
+        app.MapGet("/desc/bulk/fetch", Fetch)
             .WithName("BulkFileDescription");
         Task.Run(() =>
         {
