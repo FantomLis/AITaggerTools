@@ -27,7 +27,8 @@ internal class Program
 
         var app = builder.Build();
         // Clearing temp upload folder on startup
-        Directory.Delete(Path.Combine(Directory.GetCurrentDirectory(), "temp"), true);
+        var tempDir = Path.Combine(Directory.GetCurrentDirectory(), "temp");
+        if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
         app.UseHttpsRedirection();
         
         app.MapPost("/desc", Desc)
