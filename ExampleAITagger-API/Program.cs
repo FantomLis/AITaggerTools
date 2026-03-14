@@ -79,7 +79,7 @@ internal class Program
     
     private static async Task Fetch(HttpContext r)
     {
-        List<string>? input = (await r.Request.ReadFromJsonAsync<Dictionary<string, string>.ValueCollection>())?.ToList();
+        List<string>? input = (await r.Request.ReadFromJsonAsync<List<string>>())?.ToList();
         if (input == null) return;
         List<string> filepaths = new();
         foreach (var filepath in input)
@@ -212,7 +212,7 @@ internal class Program
         public string Filename;
         public string Data;
         public string EndpointId;
-
+        public SingleFileResponse() {}
         public SingleFileResponse(string filename, string data, string endpointId)
         {
             Filename = filename;
