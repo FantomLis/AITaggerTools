@@ -45,7 +45,7 @@ public static class XmpManager
         var t = GetAllTaggerTags(xmpMeta, id);
         for (int i = 1; i < t.Length; i++)
         {
-            if (t[i] == tag) return xmpMeta;
+            if (CleanUpTag(t[i]) == tag) return xmpMeta;
         }
         ApplyTag(xmpMeta, id, tag);
         return xmpMeta;
@@ -68,8 +68,8 @@ public static class XmpManager
         for (int i = 1; i < t.Length; i++)
         {
             var tagValInMeta = t[i];
-            if (tags.Contains(tagValInMeta))
-                uniqueTags.Remove(tagValInMeta);
+            if (tags.Contains(CleanUpTag(tagValInMeta)))
+                uniqueTags.Remove(CleanUpTag(tagValInMeta));
         }
 
         ApplyTags(xmpMeta, id, uniqueTags.ToArray());
@@ -91,7 +91,7 @@ public static class XmpManager
     }
 
     [Pure]
-    public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/'));
+    public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/')+1);
 
     public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool backupFile = true, string backupPath = "")
     {
