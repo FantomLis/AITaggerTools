@@ -27,7 +27,7 @@ app.MapPost("/desc", async (r) =>
         // ... connect to AI model and get results
         
         // ... parse results and put into results variable
-        results = "Example description ;)";
+        results = "Tag1, Tag2, Tag3";
         
         r.Response.Headers.Append("Endpoint-Id", ApiId);
         await r.Response.WriteAsync(results);
