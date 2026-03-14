@@ -138,7 +138,7 @@ internal static class Executable
                     }
 
                     unprocessedFiles.Remove(curProcFiles[i]);
-                    fileCount++;
+                    currentFile++;
                 }
             }
             catch (MultiFileException ex)
