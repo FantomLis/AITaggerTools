@@ -33,7 +33,7 @@ app.MapPost("/desc", async (r) =>
         await r.Response.WriteAsync(results);
         
         // Deleting temp file
-        //File.Delete(filePath);
+        File.Delete(filePath);
     })
     .WithName("AIDescription");
 
