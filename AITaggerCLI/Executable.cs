@@ -15,7 +15,7 @@ internal static class Executable
         rootCommand.SetAction(parseResult =>
         {
             string path = parseResult.GetValue(inputOption)!;
-            string endpoint = parseResult.GetValue(endpointOption)!;
+            string endpointUrl = parseResult.GetValue(endpointOption)!;
             List<string> files = new();
             if (File.GetAttributes(path).HasFlag(FileAttribute.Directory))
             {
@@ -23,18 +23,18 @@ internal static class Executable
             }
             else files.Add(path);
 
-            foreach (var file in files)
+            foreach (var filepath in files)
             {
-                UseFile(file, endpoint, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption));
+                UseFile(filepath, endpointUrl, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption));
             }
         });
 
         return rootCommand.Parse(args).Invoke();
     }
 
-    private static void UseFile(string name, string endpoint, string? backup = null, bool quick = true)
+    private static void UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true)
     {
-        switch (Path.GetExtension(name).Replace(".", ""))
+        switch (Path.GetExtension(filename).Replace(".", ""))
         {
             case "png":
             case "jpg":
@@ -46,10 +46,44 @@ internal static class Executable
             case "mkv":
                 break;
             default:
-                Log.Error($"File {name} is unsupported.");
+                Log.Error($"File {filename} is unsupported.");
                 return;
         }
-        if (GenerateDescription(name, endpoint, backup, quick)) Log.Information("Done.");
+
+        try {
+            GenerateDescription(filename, endpointUrl, backup, quick);
+        }
+        catch (XmpException ex)
+        {
+            Log.Error($"Failed to open .xmp file: {ex.Message}");
+            Log.Debug(ex, "");
+            return;
+        }
+        catch (AggregateException ex)
+        {
+            var msg = "Unhandled error";
+            if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
+            {
+                msg = "Invalid endpoint";
+
+            }
+            else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
+            {
+                msg = "Server failed to respond";
+            }
+
+            Log.Error($"{msg}: {ex.InnerException?.Message}");
+            Log.Debug(ex, "");
+            return;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Unhandled error: {ex}");
+            Log.Debug(ex, "");
+            return;
+        }
+        
+        Log.Information($"File {filename} done.");
     }
 
     private static void SetupLogger()
@@ -105,63 +139,29 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static bool GenerateDescription(string name, string endpoint, string? backup = null, bool quick = true)
+    private static void GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true)
     {
-        try
-        {
-            var apiResponse = APICaller.GenerateDescription(name, endpoint).Result;
+        var apiResponse = APICaller.GenerateDescription(filename, endpointUrl).Result;
 
 #if DEBUG
-            IXmpMeta xmpMeta = XmpManager.LoadFile(name);
-            Log.Debug("All properties: ");
-            foreach (var property in xmpMeta.Properties)
-                Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
-            Log.Debug("============================");
+        IXmpMeta xmpMeta = XmpManager.LoadFile(filename);
+        Log.Debug("All properties: ");
+        foreach (var property in xmpMeta.Properties)
+            Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
+        Log.Debug("============================");
 #else 
-            IXmpMeta xmpMeta;
+        IXmpMeta xmpMeta;
 #endif
             
-            xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(name, apiResponse.EndpointId, apiResponse.Data) 
-                : TagApplier.ApplyTagsToFile(name, apiResponse.EndpointId, apiResponse.Data);
+        xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data) 
+            : TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data);
             
 #if DEBUG
-            Log.Debug("All properties after update: ");
-            foreach (var property in xmpMeta.Properties)
-                Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
-            Log.Debug("============================");
+        Log.Debug("All properties after update: ");
+        foreach (var property in xmpMeta.Properties)
+            Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
+        Log.Debug("============================");
 #endif
-            xmpMeta.SaveFile(name, (backup != null), backup??"");
-        }
-        catch (XmpException ex)
-        {
-            Log.Error($"Failed to open .xmp file: {ex.Message}");
-            Log.Debug(ex, "");
-            return false;
-        }
-        catch (AggregateException ex)
-        {
-            var msg = "Unhandled error";
-            if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
-            {
-                msg = "Invalid endpoint";
-
-            }
-            else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
-            {
-                msg = "Server failed to respond";
-            }
-
-            Log.Error($"{msg}: {ex.InnerException?.Message}");
-            Log.Debug(ex, "");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Unhandled error: {ex}");
-            Log.Debug(ex, "");
-            return false;
-        }
-
-        return true;
+        xmpMeta.SaveFile(filename, (backupPath != null), backupPath ?? "");
     }
 }
