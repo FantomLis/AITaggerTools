@@ -17,7 +17,7 @@ internal static class Executable
             string path = parseResult.GetValue(inputOption)!;
             string endpointUrl = parseResult.GetValue(endpointOption)!;
             List<string> files = new();
-            if (File.GetAttributes(path).HasFlag(FileAttribute.Directory))
+            if (File.GetAttributes(path).Equals(FileAttributes.Directory))
             {
                 files.AddRange(Directory.GetFiles(path));
             }
