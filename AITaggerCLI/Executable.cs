@@ -357,7 +357,12 @@ internal static class Executable
                 xmpMeta = XmpManager.LoadFile(filename);
                 _DrawProperties(xmpMeta, "All properties: ");
 #endif
-                var fileResult = apiResponse.Files.First(x => x.Filename == filename);
+                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == filename, null);
+                if (fileResult == null)
+                {
+                    statusList.Add(TagApplierStatus.BAD_RESPONSE);
+                    continue;
+                }
                 xmpMeta = quick
                     ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data,
                         out tagApplierStatus)
