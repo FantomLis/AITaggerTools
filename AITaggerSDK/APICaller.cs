@@ -27,7 +27,12 @@ public static class APICaller
             throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
         }
 
-        return (await response.Content.ReadFromJsonAsync<MultiFileResponse>())!;
+        var multiFileResponse = (await response.Content.ReadFromJsonAsync<MultiFileResponse>())!;
+        foreach (var file in multiFileResponse.Files)
+        {
+            file.Filename = fileMap[file.Filename];
+        }
+        return multiFileResponse;
     }
 
     public static async Task<SingleFileResponse> RequestSingleFileDescription(string endpointUrl, FileStream file) =>
