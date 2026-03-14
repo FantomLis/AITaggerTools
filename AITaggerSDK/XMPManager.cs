@@ -65,7 +65,7 @@ public static class XmpManager
         if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTags(xmpMeta, id, tags);
         List<string> uniqueTags = tags.ToList();
         var t = GetAllTaggerTags(xmpMeta, id);
-        for (int i = 1; i < t.Length; i++)
+        for (int i = 0; i < t.Length; i++)
         {
             var tagValInMeta = t[i];
             if (tags.Contains(CleanUpTag(tagValInMeta)))
