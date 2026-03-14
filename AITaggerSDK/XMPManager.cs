@@ -9,6 +9,11 @@ public static class XmpManager
 {
     const string DigikamNs = "http://www.digikam.org/ns/1.0/";
     const string DigikamTagsList = "digiKam:TagsList";
+
+    static XmpManager()
+    {
+        XmpMetaFactory.SchemaRegistry.RegisterNamespace(DigikamNs, "digiKam");
+    }
     
     public static IXmpMeta LoadFile(string name)
     {
