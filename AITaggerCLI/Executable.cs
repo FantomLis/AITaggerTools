@@ -119,6 +119,7 @@ internal static class Executable
                 case "avi":
                 case "mp4":
                 case "mkv":
+                case "webm":
                     unprocessedFiles.Add(filename);
                     break;
                 case ".xmp":
