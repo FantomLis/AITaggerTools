@@ -171,7 +171,8 @@ internal static class Executable
                 return null;
             }
         }
-
+        Log.Information($"100% {string.Concat(Enumerable.Repeat('█', 20))}" +
+                        $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
         return fileStatuses;
     }
     
