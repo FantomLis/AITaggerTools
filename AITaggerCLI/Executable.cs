@@ -2,6 +2,7 @@
 using AITaggerSDK;
 using Serilog;
 using XmpCore;
+//TODO: Add command for starting web-panel
 
 namespace AITaggerCLI;
 
@@ -10,9 +11,14 @@ internal static class Executable
     public static int Main(string[] args)
     {
         SetupLogger();
-        var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, out var backupOption, out var quickOption);
+        var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, 
+            out var backupOption, out var quickOption, out var webuiOption);
         rootCommand.SetAction(parseResult =>
         {
+            if (parseResult.GetValue<bool>(webuiOption) == true)
+            {
+                throw new NotImplementedException("Currently WebUI is not implemented.");
+            }
             string[] paths = parseResult.GetValue(inputOption)!;
             string endpointUrl = parseResult.GetValue(endpointOption)!;
             var files = GetAllFiles(paths);
@@ -172,7 +178,7 @@ internal static class Executable
     }
 
     private static RootCommand CreateRootCommand(out Option<string[]> inputOption, out Option<string> endpointOption,
-        out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption)
+        out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption, out Option<bool> webuiOption)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -208,12 +214,19 @@ internal static class Executable
             Required = false,
             DefaultValueFactory = _ => true
         };
+        webuiOption = new("--webui", "-ui", "-u")
+        {
+            Description = "Starts WebUI instead of CLI.",
+            Required = false,
+            DefaultValueFactory = _ => false
+        };
 
         rootCommand.Options.Add(inputOption);
         rootCommand.Options.Add(endpointOption);
         rootCommand.Options.Add(xmpFileLocationOption);
         rootCommand.Options.Add(backupOption);
         rootCommand.Options.Add(quickOption);
+        rootCommand.Options.Add(webuiOption);
         return rootCommand;
     }
 
