@@ -41,22 +41,26 @@ internal class Program
             {
                 Thread.Sleep(60 * 1000);
                 List<string> remove = new();
-                foreach (var fileRemDate in FileRemovingStruct)
+                lock (FileRemovingStruct)
                 {
-                    if (fileRemDate.Value < DateTime.Now)
+                    foreach (var fileRemDate in FileRemovingStruct)
                     {
-                        try
+                        if (fileRemDate.Value < DateTime.Now)
                         {
-                            File.Delete(fileRemDate.Key);
-                            remove.Add(fileRemDate.Key);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Failed to delete {fileRemDate.Key}: {ex.Message}");
+                            try
+                            {
+                                File.Delete(fileRemDate.Key);
+                                remove.Add(fileRemDate.Key);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Failed to delete {fileRemDate.Key}: {ex.Message}");
+                            }
                         }
                     }
+
+                    remove.ForEach(x => FileRemovingStruct.Remove(x));
                 }
-                remove.ForEach(x => FileRemovingStruct.Remove(x));
             }
         });
         app.Run();
