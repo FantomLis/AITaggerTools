@@ -18,7 +18,6 @@ public static class XmpManager
     public static IXmpMeta LoadFile(string name)
     {
         IXmpMeta xmp = XmpMetaFactory.Create();
-        
         string file = ToXmpFileName(name);
         if (File.Exists(file))
         {
@@ -42,8 +41,8 @@ public static class XmpManager
 
     public static IXmpMeta ApplyUniqueTag(this IXmpMeta xmpMeta, string id, string tag)
     {
-        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) ApplyTag(xmpMeta, id, tag);
         for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTag(xmpMeta, id, tag);
         {
             if (xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value == tag) return xmpMeta;
         }
@@ -62,7 +61,7 @@ public static class XmpManager
     }
     public static IXmpMeta ApplyUniqueTags(this IXmpMeta xmpMeta, string id,  params string[] tags)
     {
-        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) ApplyTags(xmpMeta, id, tags);
+        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTags(xmpMeta, id, tags);
         List<string> uniqueTags = tags.ToList();
         for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
         {
@@ -77,6 +76,7 @@ public static class XmpManager
 
     public static string[] GetAllTaggerTags(this IXmpMeta xmpMeta, string id)
     {
+        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return [];
         List<string> tags = new();
         for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
         {
