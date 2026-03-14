@@ -20,7 +20,7 @@ app.MapPost("/desc", async (r) =>
         string results = string.Empty;
         
         // Writing file to temp folder
-        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "temp", formFile.FileName);
+        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "temp", Path.GetRandomFileName() + "_" + formFile.FileName);
         Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "temp"));
         using (var f = File.Create(filePath)) await f.WriteAsync(file);
         
