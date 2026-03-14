@@ -51,6 +51,19 @@ public static class XmpManager
         return xmpMeta;
     }
 
+    public static IXmpMeta ClearTags(this IXmpMeta xmpMeta, string id)
+    {
+        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return xmpMeta;
+        List<int> removedTags = new();
+        for (int i = xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i >= 1; i--)
+        {
+            var arrVal = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+            if (arrVal.Split('/')[0] == id) removedTags.Add(i);
+        }
+        removedTags.ForEach(x => xmpMeta.DeleteArrayItem(DigikamNs, DigikamTagsList, x));
+        return xmpMeta;
+    }
+
     public static IXmpMeta ApplyTags (this IXmpMeta xmpMeta, string id, params string[] tags)
     {
         foreach (var tag in tags)

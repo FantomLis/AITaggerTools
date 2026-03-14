@@ -12,7 +12,13 @@ internal static class Executable
     {
         SetupLogger();
         var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, 
-            out var backupOption, out var quickOption, out var webuiOption);
+            out var backupOption, out var quickOption, out var webuiOption, out var clearTagsOption);
+        rootCommand.Validators.Add(parseResult =>
+        {
+            var clearTag = parseResult.GetValue<string?>(clearTagsOption);
+            string? endpointUrl = parseResult.GetValue<string?>(endpointOption);
+            if (endpointUrl == null && clearTag == null) parseResult.AddError("Endpoint should be present.");
+        });
         rootCommand.SetAction(parseResult =>
         {
             if (parseResult.GetValue<bool>(webuiOption) == true)
@@ -24,6 +30,18 @@ internal static class Executable
             var files = GetAllFiles(paths);
 
             ExcludeTextFiles(files);
+
+            var clearTag = parseResult.GetValue<string?>(clearTagsOption);
+            var backupFile = parseResult.GetValue<string?>(backupOption);
+            if (clearTag != null)
+            {
+                foreach (var file in files)
+                {
+                    IXmpMeta xmpMeta = XmpManager.LoadFile(file);
+                    xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile != null, backupFile);
+                }
+                return;
+            }
             
             string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileLocationOption);
             if (files.Count > 1)
@@ -33,7 +51,7 @@ internal static class Executable
                     Log.Error("--output option will be ignored, multiple files supplied.");
                 }
                 var fileStatuses = UseFiles(files.ToArray(), endpointUrl,
-                    parseResult.GetValue<string?>(backupOption), parseResult.GetValue<bool>(quickOption));
+                    backupFile, parseResult.GetValue<bool>(quickOption));
                 if (fileStatuses is null)  return;
                 Log.Error("This files failed to process: ");
                 foreach (var (key, value) in fileStatuses)
@@ -45,7 +63,7 @@ internal static class Executable
             else
             {
                 UseFile(files.First(), endpointUrl,
-                    parseResult.GetValue<string?>(backupOption), parseResult.GetValue<bool>(quickOption),
+                    backupFile, parseResult.GetValue<bool>(quickOption),
                     xmpFileLocation);
             }
         });
@@ -255,8 +273,9 @@ internal static class Executable
             .WriteTo.Console().CreateLogger();
     }
 
-    private static RootCommand CreateRootCommand(out Option<string[]> inputOption, out Option<string> endpointOption,
-        out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption, out Option<bool> webuiOption)
+    private static RootCommand CreateRootCommand(out Option<string[]> inputOption, out Option<string?> endpointOption,
+        out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption, out Option<bool> webuiOption,
+        out Option<string?> clearTagsOption)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -272,7 +291,8 @@ internal static class Executable
         endpointOption = new("--endpoint", "-e")
         {
             Description = "REST API endpoint, that supports PUT /desc with image uploading.",
-            Required = true
+            Required = false,
+            DefaultValueFactory = _ => null
         };
         xmpFileLocationOption = new("--output", "-o")
         {
@@ -298,6 +318,12 @@ internal static class Executable
             Required = false,
             DefaultValueFactory = _ => false
         };
+        clearTagsOption = new("--clear", "-c")
+        {
+            Description = "Removes all tags with this endpoint id.",
+            Required = false,
+            DefaultValueFactory = _ => null
+        };
 
         rootCommand.Options.Add(inputOption);
         rootCommand.Options.Add(endpointOption);
@@ -305,6 +331,7 @@ internal static class Executable
         rootCommand.Options.Add(backupOption);
         rootCommand.Options.Add(quickOption);
         rootCommand.Options.Add(webuiOption);
+        rootCommand.Options.Add(clearTagsOption);
         return rootCommand;
     }
 
