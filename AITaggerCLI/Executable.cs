@@ -216,7 +216,7 @@ internal static class Executable
     private static TagApplierStatus GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true, string? saveFileName = null)
     {
         if (!File.Exists(filename)) throw new ArgumentException("File does not exist.");
-        var apiResponse = APICaller.GenerateDescription(endpointUrl, File.OpenRead(filename)).Result;
+        var apiResponse = APICaller.RequestSingleFileDescription(endpointUrl, File.OpenRead(filename)).Result;
         IXmpMeta xmpMeta;
         TagApplierStatus isSkipped = TagApplierStatus.OK;
         
