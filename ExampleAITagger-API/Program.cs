@@ -97,19 +97,19 @@ internal class Program
             {
                 // ... connect to AI model and get results
                 result = RunModel(filepath);
+                
+                // ... parse results and put into results variable
+                result = ParseResults(result);
+                output.Add(new SingleFileResponse(filepath, result, ApiId));
+            
+                // Deleting temp file
+                File.Delete(filepath);
             } // when failed, skip file
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
                 continue;
             }
-        
-            // ... parse results and put into results variable
-            result = ParseResults(result);
-            output.Add(new SingleFileResponse(filepath, result, ApiId));
-            
-            // Deleting temp file
-            File.Delete(filepath);
         }
         await r.Response.WriteAsJsonAsync(new MultiFileResponse()
         {
