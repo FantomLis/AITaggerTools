@@ -30,9 +30,16 @@ public static class APICaller
 
         var multiFileResponse = (await response.Content.ReadFromJsonAsync<MultiFileResponse>());
         if (multiFileResponse?.Files == null) throw new HttpRequestException("Invalid response.");
-        foreach (var file in multiFileResponse.Files)
+        try
         {
-            file.Filename = fileMap[file.Filename];
+            foreach (var file in multiFileResponse.Files)
+            {
+                file.Filename = fileMap[file.Filename];
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new HttpRequestException($"Invalid response: {ex.Message}");
         }
         return multiFileResponse;
     }
