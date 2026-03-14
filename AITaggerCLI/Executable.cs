@@ -43,18 +43,26 @@ internal static class Executable
                 Log.Error("--output option will be ignored, multiple files supplied.");
                 xmpFileLocation = null;
             }
-            
+
+            List<string> failedFiles = new List<string>(files.Count);
             int fileCount = files.Count, fileSkipped = 0, currentFile = 0;
             foreach (var filepath in files)
             {
-                fileSkipped += UseFile(filepath, endpointUrl, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption),
-                    xmpFileLocation) 
-                    ? 1 : 0;
+                bool isSkipped = UseFile(filepath, endpointUrl, parseResult.GetValue<string?>(backupOption),
+                    parseResult.GetValue<bool>(quickOption), xmpFileLocation);
                 currentFile++;
+                if (isSkipped)
+                {
+                    fileSkipped++;
+                    failedFiles.Add(filepath);
+                }
                 var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
                 Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
                                   $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
             }
+            
+            Log.Error("This files failed to process: ");
+            failedFiles.ForEach(Log.Error);
         });
 
         return rootCommand.Parse(args).Invoke();
