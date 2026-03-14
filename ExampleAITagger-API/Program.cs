@@ -1,3 +1,6 @@
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+
 internal class Program
 {
     // Always change API ID when creating new TaggerAPI
@@ -160,6 +163,27 @@ internal class Program
     private static string RunModel(string filePath)
     {
         return "Tag;Tag2;Tag3";
+    }
+
+    // Use this method if your model cannot tag videos and only works with images
+    // This method will create image every ~1 second of video
+    // Send it into model and then merge every result together
+    // You can concat all unique tags into one entry and send it
+    private static void PrepareVideo(string filePath)
+    {
+        Directory.CreateDirectory(filePath + ".d");
+        int i = 0;
+        using (var video = new VideoCapture(filePath))
+        using (var img = new Mat())
+        {
+            while (video.Grab())
+            {
+                video.Retrieve(img);
+                var filename = Path.Combine(filePath+".d", $"{i}.jpg");
+                CvInvoke.Imwrite(filename, img);
+                i+=(int) Math.Floor(video.Get(CapProp.Fps));
+            }
+        }
     }
 
     private static async Task<string> SaveFileToDrive(IFormFile formFile)
