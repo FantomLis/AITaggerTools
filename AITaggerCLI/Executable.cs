@@ -13,9 +13,9 @@ internal static class Executable
         var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, out var backupOption, out var quickOption);
         rootCommand.SetAction(parseResult =>
         {
-            string path = parseResult.GetValue(inputOption)!;
+            string[] paths = parseResult.GetValue(inputOption)!;
             string endpointUrl = parseResult.GetValue(endpointOption)!;
-            var files = GetAllFiles(path);
+            var files = GetAllFiles(paths);
 
             ExcludeTextFiles(files);
             
@@ -70,14 +70,17 @@ internal static class Executable
         return failedFiles;
     }
 
-    private static List<string> GetAllFiles(string path)
+    private static List<string> GetAllFiles(string[] paths)
     {
         List<string> files = new();
-        if (File.GetAttributes(path).Equals(FileAttributes.Directory))
+        foreach (var path in paths)
         {
-            files.AddRange(Directory.GetFiles(path));
+            if (File.GetAttributes(path).Equals(FileAttributes.Directory))
+            {
+                files.AddRange(Directory.GetFiles(path));
+            }
+            else files.Add(path);
         }
-        else files.Add(path);
 
         return files;
     }
@@ -168,7 +171,7 @@ internal static class Executable
             .WriteTo.Console().CreateLogger();
     }
 
-    private static RootCommand CreateRootCommand(out Option<string> inputOption, out Option<string> endpointOption,
+    private static RootCommand CreateRootCommand(out Option<string[]> inputOption, out Option<string> endpointOption,
         out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
@@ -178,8 +181,9 @@ internal static class Executable
 
         inputOption = new("--input", "-i")
         {
-            Description = "Input file (should be video or image) or folder",
-            Required = true
+            Description = "Input file (should be video or image) or folder. Multiple inputs allowed.",
+            Required = true,
+            AllowMultipleArgumentsPerToken = true
         };
         endpointOption = new("--endpoint", "-e")
         {
