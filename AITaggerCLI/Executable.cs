@@ -347,6 +347,8 @@ internal static class Executable
         var apiResponse = APICaller.RequestMultiFileDescription(endpointUrl, fileStreams.ToArray()).Result;
         IXmpMeta xmpMeta;
         TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
+        fileStreams.ForEach(x => x.Close());
+        fileStreams.ForEach(x => x.Dispose());
             
         List<TagApplierStatus> statusList = new(filenames.Length);
         foreach (var filename in filenames)
@@ -377,14 +379,7 @@ internal static class Executable
             {
                 throw new MultiFileException(e, filename);
             }
-            finally
-            {
-                fileStreams.ForEach(x => x.Close());
-                fileStreams.ForEach(x => x.Dispose());
-            }
         }
-        fileStreams.ForEach(x => x.Close());
-        fileStreams.ForEach(x => x.Dispose());
         return statusList.ToArray();
     }
     
