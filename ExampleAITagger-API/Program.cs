@@ -78,7 +78,7 @@ internal class Program
         
         var filePath = await SaveFileToDrive(formFile);
         
-        await r.Response.WriteAsync(filePath);
+        await r.Response.WriteAsync(Path.GetFileName(filePath));
 
         FileRemovingStruct.Add(filePath, DateTime.Now.AddMinutes(MaxFileStoreTimeInMin));
     }
@@ -106,7 +106,7 @@ internal class Program
                 
                 // ... parse results and put into results variable
                 result = ParseResults(result);
-                output.Add(new SingleFileResponse(filepath, result, ApiId));
+                output.Add(new SingleFileResponse(Path.GetFileName(filepath), result, ApiId));
             
                 // Deleting temp file
                 File.Delete(filepath);

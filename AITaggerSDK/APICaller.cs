@@ -16,7 +16,7 @@ public static class APICaller
         foreach (var file in files)
         {
             fileMap.Add(await (await SendSingleFileRequest(Url.Combine(endpointUrl, "desc", "bulk", "upload"), client,
-                file.File, file.Filename)).Content.ReadAsStringAsync(),file.Filename);
+                file.File, Path.GetFileName(file.Filename))).Content.ReadAsStringAsync(),Path.GetFileName(file.Filename));
         }
         
         var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "desc", "bulk", "fetch"))
