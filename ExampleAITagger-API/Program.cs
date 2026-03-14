@@ -3,7 +3,7 @@ const string ApiId = "ExampleAITagger-API";
 var builder = WebApplication.CreateBuilder(args);
 
 var app = builder.Build();
-
+Directory.Delete(Path.Combine(Directory.GetCurrentDirectory(), "temp"), true);
 app.UseHttpsRedirection();
 
 app.MapPost("/desc", async (r) =>
