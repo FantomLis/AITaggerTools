@@ -32,7 +32,7 @@ internal static class Executable
         return rootCommand.Parse(args).Invoke();
     }
 
-    private static void UseFile(string name, string endpoint, string? backup, bool quick)
+    private static void UseFile(string name, string endpoint, string? backup = null, bool quick = true)
     {
         switch (Path.GetExtension(name).Replace(".", ""))
         {
