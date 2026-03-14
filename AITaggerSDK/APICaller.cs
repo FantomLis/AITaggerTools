@@ -20,7 +20,7 @@ public static class APICaller
         
         var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "desc", "bulk", "fetch"))
         {
-            Content = new StringContent(JsonSerializer.Serialize(fileMap.Values))
+            Content = new StringContent(JsonSerializer.Serialize(fileMap.Keys.ToList()), Encoding.UTF8, "application/json"),
         });
         if (!response.IsSuccessStatusCode)
         {
