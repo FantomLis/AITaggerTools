@@ -46,8 +46,8 @@ internal static class Executable
             case "mkv":
                 break;
             default:
-                Log.Warning($"File {name} can be unsupported. Be aware of that.");
-                break;
+                Log.Error($"File {name} is unsupported.");
+                return;
         }
         if (GenerateDescription(name, endpoint, backup, quick)) Log.Information("Done.");
     }
