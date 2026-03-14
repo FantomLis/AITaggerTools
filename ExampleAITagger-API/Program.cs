@@ -1,7 +1,7 @@
 const string ApiId = "ExampleAITagger-API";
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 1024 * 1024 * 1024);
 var app = builder.Build();
 Directory.Delete(Path.Combine(Directory.GetCurrentDirectory(), "temp"), true);
 app.UseHttpsRedirection();
