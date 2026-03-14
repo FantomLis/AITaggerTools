@@ -15,27 +15,9 @@ internal static class Executable
         {
             string path = parseResult.GetValue(inputOption)!;
             string endpointUrl = parseResult.GetValue(endpointOption)!;
-            List<string> files = new();
-            if (File.GetAttributes(path).Equals(FileAttributes.Directory))
-            {
-                files.AddRange(Directory.GetFiles(path));
-            }
-            else files.Add(path);
+            var files = GetAllFiles(path);
 
-            List<string> excludeFile = new(files.Count);
-            foreach (var file in files)
-            {
-                var extension = Path.GetExtension(file);
-                switch (extension)
-                {
-                    case ".xmp":
-                    case ".txt":
-                        excludeFile.Add(file);
-                        break;
-                }
-            }
-            excludeFile.ForEach(x => files.Remove(x));
-            excludeFile.Clear();
+            ExcludeTextFiles(files);
             
             string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileLocationOption);
             if (files.Count > 1 && xmpFileLocation != null)
@@ -44,38 +26,77 @@ internal static class Executable
                 xmpFileLocation = null;
             }
 
-            List<Tuple<string, TagApplierStatus>> failedFiles = new List<Tuple<string, TagApplierStatus>>(files.Count);
-            int fileCount = files.Count, fileSkipped = 0, currentFile = 0;
-            foreach (var filepath in files)
-            {
-                var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
-                Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
-                                $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
-                
-                TagApplierStatus tagApplierStatus = UseFile(filepath, endpointUrl, parseResult.GetValue<string?>(backupOption),
-                    parseResult.GetValue<bool>(quickOption), xmpFileLocation);
-                
-                switch (tagApplierStatus)
-                {
-                    case TagApplierStatus.SKIPPED:
-                        fileSkipped++;
-                        break;
-                    case TagApplierStatus.FAILED:
-                    case TagApplierStatus.INVALID_TYPE:
-                    case TagApplierStatus.INVALID_FILE:
-                    case TagApplierStatus.NETWORK_FAILURE:
-                        fileSkipped++;
-                        failedFiles.Add(new Tuple<string, TagApplierStatus>(filepath, tagApplierStatus));
-                        break;
-                }
-                currentFile++;
-            }
-            
+            var fileStatus = ProceedFiles(files, endpointUrl, 
+                parseResult.GetValue<string?>(backupOption), parseResult.GetValue<bool>(quickOption), xmpFileLocation);
+
             Log.Error("This files failed to process: ");
-            failedFiles.ForEach(x=> Log.Error($"{x.Item1}: {x.Item2.ToString()}"));
+            fileStatus.ForEach(x =>
+            {
+                if (x.Item2 != TagApplierStatus.OK) 
+                    Log.Error($"{x.Item1}: {x.Item2.ToString()}");
+            });
         });
 
         return rootCommand.Parse(args).Invoke();
+    }
+
+    private static List<Tuple<string, TagApplierStatus>> ProceedFiles(List<string> files, string endpointUrl, string? backup, 
+        bool quick, string? xmpFileLocation)
+    {
+        List<Tuple<string, TagApplierStatus>> failedFiles = new List<Tuple<string, TagApplierStatus>>(files.Count);
+        int fileCount = files.Count, fileSkipped = 0, currentFile = 0;
+        foreach (var filepath in files)
+        {
+            var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
+            Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
+                            $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
+                
+            TagApplierStatus tagApplierStatus = UseFile(filepath, endpointUrl, backup, quick, xmpFileLocation);
+                
+            switch (tagApplierStatus)
+            {
+                case TagApplierStatus.SKIPPED:
+                case TagApplierStatus.FAILED:
+                case TagApplierStatus.INVALID_TYPE:
+                case TagApplierStatus.INVALID_FILE:
+                case TagApplierStatus.NETWORK_FAILURE:
+                    fileSkipped++;
+                    break;
+            }
+            failedFiles.Add(new Tuple<string, TagApplierStatus>(filepath, tagApplierStatus));
+            currentFile++;
+        }
+
+        return failedFiles;
+    }
+
+    private static List<string> GetAllFiles(string path)
+    {
+        List<string> files = new();
+        if (File.GetAttributes(path).Equals(FileAttributes.Directory))
+        {
+            files.AddRange(Directory.GetFiles(path));
+        }
+        else files.Add(path);
+
+        return files;
+    }
+
+    private static void ExcludeTextFiles(List<string> files)
+    {
+        List<string> excludeFile = new(files.Count);
+        foreach (var file in files)
+        {
+            var extension = Path.GetExtension(file);
+            switch (extension)
+            {
+                case ".xmp":
+                case ".txt":
+                    excludeFile.Add(file);
+                    break;
+            }
+        }
+        excludeFile.ForEach(x => files.Remove(x));
     }
 
     private static TagApplierStatus UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
