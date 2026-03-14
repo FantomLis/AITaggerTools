@@ -41,10 +41,11 @@ public static class XmpManager
 
     public static IXmpMeta ApplyUniqueTag(this IXmpMeta xmpMeta, string id, string tag)
     {
-        for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
         if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTag(xmpMeta, id, tag);
+        var t = GetAllTaggerTags(xmpMeta, id);
+        for (int i = 1; i < t.Length; i++)
         {
-            if (xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value == tag) return xmpMeta;
+            if (t[i] == tag) return xmpMeta;
         }
         ApplyTag(xmpMeta, id, tag);
         return xmpMeta;
@@ -63,9 +64,10 @@ public static class XmpManager
     {
         if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTags(xmpMeta, id, tags);
         List<string> uniqueTags = tags.ToList();
-        for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        var t = GetAllTaggerTags(xmpMeta, id);
+        for (int i = 1; i < t.Length; i++)
         {
-            var tagValInMeta = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+            var tagValInMeta = t[i];
             if (tags.Contains(tagValInMeta))
                 uniqueTags.Remove(tagValInMeta);
         }
@@ -78,7 +80,7 @@ public static class XmpManager
     {
         if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return [];
         List<string> tags = new();
-        for (int i = 0; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        for (int i = 1; i < xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
         {
             var arrVal = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
             if (arrVal.StartsWith(id+"/")) 
