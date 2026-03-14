@@ -2,7 +2,6 @@
 using AITaggerSDK;
 using Serilog;
 using XmpCore;
-//TODO: Add command for starting web-panel
 
 namespace AITaggerCLI;
 
