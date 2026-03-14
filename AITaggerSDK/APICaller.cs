@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Flurl;
 
@@ -27,7 +28,8 @@ public static class APICaller
             throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
         }
 
-        var multiFileResponse = (await response.Content.ReadFromJsonAsync<MultiFileResponse>())!;
+        var multiFileResponse = (await response.Content.ReadFromJsonAsync<MultiFileResponse>());
+        if (multiFileResponse?.Files == null) throw new HttpRequestException("Invalid response.");
         foreach (var file in multiFileResponse.Files)
         {
             file.Filename = fileMap[file.Filename];
@@ -77,9 +79,11 @@ public static class APICaller
 
     public class SingleFileResponse
     {
-        public string Filename;
-        public string Data;
-        public string EndpointId;
+        public string Filename{ get; set; }
+        public string Data{ get; set; }
+        public string EndpointId{ get; set; }
+        
+        public SingleFileResponse() {}
 
         public SingleFileResponse(string filename, string data, string endpointId)
         {
@@ -91,7 +95,7 @@ public static class APICaller
 
     public class MultiFileResponse
     {
-        public string EndpointId;
-        public SingleFileResponse[] Files;
+        public string EndpointId { get; set; }
+        public SingleFileResponse[] Files { get; set; }
     }
 }

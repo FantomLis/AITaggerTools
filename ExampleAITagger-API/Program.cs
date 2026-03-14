@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 
@@ -206,22 +207,25 @@ internal class Program
         return filePath;
     }
     
-    public class MultiFileResponse
-    {
-        public string EndpointId;
-        public SingleFileResponse[] Files;
-    }
     public class SingleFileResponse
     {
-        public string Filename;
-        public string Data;
-        public string EndpointId;
+        public string Filename{ get; set; }
+        public string Data{ get; set; }
+        public string EndpointId{ get; set; }
+        
         public SingleFileResponse() {}
+
         public SingleFileResponse(string filename, string data, string endpointId)
         {
             Filename = filename;
             Data = data;
             EndpointId = endpointId;
         }
+    }
+
+    public class MultiFileResponse
+    {
+        public string EndpointId { get; set; }
+        public SingleFileResponse[] Files { get; set; }
     }
 }
