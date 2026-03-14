@@ -1,32 +1,54 @@
-﻿using Flurl;
+﻿using System.Net.Http.Json;
+using System.Text.Json;
+using Flurl;
 
 namespace AITaggerSDK;
 
 public static class APICaller
 {
-    public static async Task<APIResponse> GenerateDescription(string endpoint, FileStream file) =>
-        await GenerateDescription(endpoint, new FakeFileContainer()
+    public static async Task<MultiFileResponse> RequestMultiFileDescription(string endpointUrl, params FileStream[] files)
+        => await RequestMultiFileDescription(endpointUrl, files.Select(x => new FakeFileContainer {File = x, Filename = x.Name}).ToArray());
+    public static async Task<MultiFileResponse> RequestMultiFileDescription(string endpointUrl, params FakeFileContainer[] files)
+    {
+        HttpClient client = new HttpClient();
+        Dictionary<string, string> fileMap = new();
+        foreach (var file in files)
+        {
+            fileMap.Add(await (await SendSingleFileRequest(Url.Combine(endpointUrl, "desc", "bulk", "upload"), client,
+                file.File, file.Filename)).Content.ReadAsStringAsync(),file.Filename);
+        }
+        
+        var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "desc", "bulk", "fetch"))
+        {
+            Content = new StringContent(JsonSerializer.Serialize(fileMap.Values))
+        });
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
+        }
+
+        return (await response.Content.ReadFromJsonAsync<MultiFileResponse>())!;
+    }
+
+    public static async Task<SingleFileResponse> RequestSingleFileDescription(string endpointUrl, FileStream file) =>
+        await RequestSingleFileDescription(endpointUrl, new FakeFileContainer()
         {
             File = file,
             Filename = file.Name
         });
     
-    public static async Task<APIResponse> GenerateDescription(string endpointUrl, FakeFileContainer file)
+    public static async Task<SingleFileResponse> RequestSingleFileDescription(string endpointUrl, FakeFileContainer file)
     {
         HttpClient client = new HttpClient();
-        var response = await SendRequest(Url.Combine(endpointUrl, "desc"), file.File, file.Filename, client);
+        var response = await SendSingleFileRequest(Url.Combine(endpointUrl, "desc"), client, file.File, file.Filename);
         if (!response.IsSuccessStatusCode)
         {
             throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
         }
-        return new APIResponse()
-        {
-            Data = await response.Content.ReadAsStringAsync(),
-            EndpointId = response.Headers.GetValues("Endpoint-ID").First()
-        };
+        return new SingleFileResponse(file.Filename, await response.Content.ReadAsStringAsync(),response.Headers.GetValues("Endpoint-ID").First());
     }
-
-    private static async Task<HttpResponseMessage> SendRequest(string endpoint, Stream file, string filename, HttpClient client)
+    
+    private static async Task<HttpResponseMessage> SendSingleFileRequest(string endpoint, HttpClient client, Stream file, string filename)
     {
         var form = new MultipartFormDataContent();
         form.Add(new StreamContent(file), Path.GetFileNameWithoutExtension(filename), Path.GetFileName(filename));
@@ -42,28 +64,29 @@ public static class APICaller
     /// <param name="endpoint"></param>
     /// <returns></returns>
     /// <exception cref="HttpRequestException"></exception>
-    [Obsolete("Use GenerateDescription(string, FileStream) or GenerateDescription(string, FakeFileContainer) instead")]
-    public static async Task<APIResponse> GenerateDescription(string filename, string endpoint)
+    [Obsolete("Use RequestSingleFileDescription(string, FileStream) or RequestSingleFileDescription(string, FakeFileContainer) instead")]
+    public static async Task<SingleFileResponse> GenerateDescription(string filename, string endpoint)
     {
-        HttpClient client = new HttpClient();
-        var form = new MultipartFormDataContent();
-        form.Add(new StreamContent(File.OpenRead(filename)), Path.GetFileNameWithoutExtension(filename), Path.GetFileName(filename));
-        HttpResponseMessage response =
-            await client.PostAsync(Url.Combine(endpoint, "desc"), form);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
-        }
-        return new APIResponse()
-        {
-            Data = await response.Content.ReadAsStringAsync(),
-            EndpointId = response.Headers.GetValues("Endpoint-ID").First()
-        };
+        return await RequestSingleFileDescription(endpoint, File.OpenRead(filename));
     }
 
-    public class APIResponse
+    public class SingleFileResponse
     {
+        public string Filename;
         public string Data;
         public string EndpointId;
+
+        public SingleFileResponse(string filename, string data, string endpointId)
+        {
+            Filename = filename;
+            Data = data;
+            EndpointId = endpointId;
+        }
+    }
+
+    public class MultiFileResponse
+    {
+        public string EndpointId;
+        public SingleFileResponse[] Files;
     }
 }
