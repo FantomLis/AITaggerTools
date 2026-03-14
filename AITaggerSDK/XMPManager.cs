@@ -100,8 +100,9 @@ public static class XmpManager
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, cleaning up.");
-            if (!backupFile)
+            if (backupFile)
             {
+                Directory.CreateDirectory(backupPath);
                 var destFileName = ToXmpFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
                 File.Copy(file, destFileName);
                 Log.Debug($"Created file {destFileName} as backup.");
