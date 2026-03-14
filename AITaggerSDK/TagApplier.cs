@@ -4,10 +4,15 @@ namespace AITaggerSDK;
 
 public static class TagApplier
 {
-    public static IXmpMeta QuickApplyTagsToFile(string name, string endpointId, string tagData)
+    public static IXmpMeta QuickApplyTagsToFile(string name, string endpointId, string tagData, out bool skipped)
     {
         IXmpMeta xmpMeta = XmpManager.LoadFile(name);
-        if (xmpMeta.GetAllTaggerTags(endpointId).Length > 0) return xmpMeta;
+        if (xmpMeta.GetAllTaggerTags(endpointId).Length > 0)
+        {
+            skipped = true;
+            return xmpMeta;
+        }
+        skipped = false;
         return ApplyTagsToXmpMeta(xmpMeta,endpointId, tagData);
     }
 

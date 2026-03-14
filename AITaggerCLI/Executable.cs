@@ -1,6 +1,5 @@
 ﻿using System.CommandLine;
 using AITaggerSDK;
-using Microsoft.VisualBasic;
 using Serilog;
 using XmpCore;
 
@@ -22,17 +21,22 @@ internal static class Executable
                 files.AddRange(Directory.GetFiles(path));
             }
             else files.Add(path);
-
+            int fileCount = files.Count, fileSkipped = 0, currentFile = 0;
             foreach (var filepath in files)
             {
-                UseFile(filepath, endpointUrl, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption));
+                fileSkipped += UseFile(filepath, endpointUrl, parseResult.GetValue<string?> (backupOption),parseResult.GetValue<bool>(quickOption)) 
+                    ? 1 : 0;
+                currentFile++;
+                var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
+                Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
+                                  $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
             }
         });
 
         return rootCommand.Parse(args).Invoke();
     }
 
-    private static void UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true)
+    private static bool UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true)
     {
         switch (Path.GetExtension(filename).Replace(".", ""))
         {
@@ -47,17 +51,19 @@ internal static class Executable
                 break;
             default:
                 Log.Error($"File {filename} is unsupported.");
-                return;
+                return true;
         }
 
         try {
-            GenerateDescription(filename, endpointUrl, backup, quick);
+            var isSkipped = GenerateDescription(filename, endpointUrl, backup, quick);
+            Log.Information(isSkipped ? $"File {filename} skipped." : $"File {filename} done.");
+            return isSkipped;
         }
         catch (XmpException ex)
         {
             Log.Error($"Failed to open .xmp file: {ex.Message}");
             Log.Debug(ex, "");
-            return;
+            return true;
         }
         catch (AggregateException ex)
         {
@@ -74,16 +80,14 @@ internal static class Executable
 
             Log.Error($"{msg}: {ex.InnerException?.Message}");
             Log.Debug(ex, "");
-            return;
+            return true;
         }
         catch (Exception ex)
         {
             Log.Error($"Unhandled error: {ex}");
             Log.Debug(ex, "");
-            return;
+            return true;
         }
-        
-        Log.Information($"File {filename} done.");
     }
 
     private static void SetupLogger()
@@ -139,23 +143,24 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static void GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true)
+    private static bool GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true)
     {
         var apiResponse = APICaller.GenerateDescription(filename, endpointUrl).Result;
         IXmpMeta xmpMeta;
+        bool isSkipped = false;
         
 #if DEBUG
         xmpMeta = XmpManager.LoadFile(filename);
         _DrawProperties(xmpMeta, "All properties: ");
 #endif
-            
-        xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data) 
-            : TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data);
+        xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data, out isSkipped) :
+            TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data);
             
 #if DEBUG
         _DrawProperties(xmpMeta, "All properties after update: ");
 #endif
         xmpMeta.SaveFile(filename, (backupPath != null), backupPath ?? "");
+        return isSkipped;
     }
 #if DEBUG
     private static void _DrawProperties(IXmpMeta xmpMeta, string text)
