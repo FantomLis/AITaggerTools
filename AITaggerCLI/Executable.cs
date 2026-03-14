@@ -142,26 +142,28 @@ internal static class Executable
     private static void GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true)
     {
         var apiResponse = APICaller.GenerateDescription(filename, endpointUrl).Result;
-
-#if DEBUG
-        IXmpMeta xmpMeta = XmpManager.LoadFile(filename);
-        Log.Debug("All properties: ");
-        foreach (var property in xmpMeta.Properties)
-            Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
-        Log.Debug("============================");
-#else 
         IXmpMeta xmpMeta;
+        
+#if DEBUG
+        xmpMeta = XmpManager.LoadFile(filename);
+        _DrawProperties(xmpMeta, "All properties: ");
 #endif
             
         xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data) 
             : TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data);
             
 #if DEBUG
-        Log.Debug("All properties after update: ");
-        foreach (var property in xmpMeta.Properties)
-            Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
-        Log.Debug("============================");
+        _DrawProperties(xmpMeta, "All properties after update: ");
 #endif
         xmpMeta.SaveFile(filename, (backupPath != null), backupPath ?? "");
     }
+#if DEBUG
+    private static void _DrawProperties(IXmpMeta xmpMeta, string text)
+    {
+        Log.Debug(text);
+        foreach (var property in xmpMeta.Properties)
+            Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
+        Log.Debug("============================");
+    }
+#endif
 }
