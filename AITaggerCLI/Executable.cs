@@ -44,31 +44,41 @@ internal static class Executable
                 xmpFileLocation = null;
             }
 
-            List<string> failedFiles = new List<string>(files.Count);
+            List<Tuple<string, TagApplierStatus>> failedFiles = new List<Tuple<string, TagApplierStatus>>(files.Count);
             int fileCount = files.Count, fileSkipped = 0, currentFile = 0;
             foreach (var filepath in files)
             {
-                bool isSkipped = UseFile(filepath, endpointUrl, parseResult.GetValue<string?>(backupOption),
-                    parseResult.GetValue<bool>(quickOption), xmpFileLocation);
-                currentFile++;
-                if (isSkipped)
-                {
-                    fileSkipped++;
-                    failedFiles.Add(filepath);
-                }
                 var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
                 Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
-                                  $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
+                                $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
+                
+                TagApplierStatus tagApplierStatus = UseFile(filepath, endpointUrl, parseResult.GetValue<string?>(backupOption),
+                    parseResult.GetValue<bool>(quickOption), xmpFileLocation);
+                
+                switch (tagApplierStatus)
+                {
+                    case TagApplierStatus.SKIPPED:
+                        fileSkipped++;
+                        break;
+                    case TagApplierStatus.FAILED:
+                    case TagApplierStatus.INVALID_TYPE:
+                    case TagApplierStatus.INVALID_FILE:
+                    case TagApplierStatus.NETWORK_FAILURE:
+                        fileSkipped++;
+                        failedFiles.Add(new Tuple<string, TagApplierStatus>(filepath, tagApplierStatus));
+                        break;
+                }
+                currentFile++;
             }
             
             Log.Error("This files failed to process: ");
-            failedFiles.ForEach(Log.Error);
+            failedFiles.ForEach(x=> Log.Error($"{x.Item1}: {x.Item2.ToString()}"));
         });
 
         return rootCommand.Parse(args).Invoke();
     }
 
-    private static bool UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
+    private static TagApplierStatus UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
     {
         switch (Path.GetExtension(filename).Replace(".", ""))
         {
@@ -83,45 +93,48 @@ internal static class Executable
                 break;
             case ".xmp":
             case ".txt":
-                return true;
+                return TagApplierStatus.SKIPPED;
             default:
                 Log.Error($"File {filename} is unsupported.");
-                return true;
+                return TagApplierStatus.INVALID_TYPE;
         }
 
         try {
             var isSkipped = GenerateDescription(filename, endpointUrl, backup, quick, saveFileName);
-            Log.Information(isSkipped ? $"File {filename} skipped." : $"File {filename} done.");
+            Log.Information(isSkipped == TagApplierStatus.SKIPPED ? $"File {filename} skipped." : $"File {filename} done.");
             return isSkipped;
         }
         catch (XmpException ex)
         {
             Log.Error($"Failed to open .xmp file: {ex.Message}");
             Log.Debug(ex, "");
-            return true;
+            return TagApplierStatus.INVALID_FILE;
         }
         catch (AggregateException ex)
         {
             var msg = "Unhandled error";
+            var failureStatus = TagApplierStatus.FAILED;
             if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
             {
                 msg = "Invalid endpoint";
+                failureStatus = TagApplierStatus.NETWORK_FAILURE;
 
             }
             else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
             {
                 msg = "Server failed to respond";
+                failureStatus = TagApplierStatus.NETWORK_FAILURE;
             }
 
             Log.Error($"{msg}: {ex.InnerException?.Message}");
             Log.Debug(ex, "");
-            return true;
+            return failureStatus;
         }
         catch (Exception ex)
         {
             Log.Error($"Unhandled error: {ex}");
             Log.Debug(ex, "");
-            return true;
+            return TagApplierStatus.FAILED;
         }
     }
 
@@ -179,11 +192,11 @@ internal static class Executable
         return rootCommand;
     }
 
-    private static bool GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true, string? saveFileName = null)
+    private static TagApplierStatus GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true, string? saveFileName = null)
     {
         var apiResponse = APICaller.GenerateDescription(filename, endpointUrl).Result;
         IXmpMeta xmpMeta;
-        bool isSkipped = false;
+        TagApplierStatus isSkipped = TagApplierStatus.OK;
         
 #if DEBUG
         xmpMeta = XmpManager.LoadFile(filename);
