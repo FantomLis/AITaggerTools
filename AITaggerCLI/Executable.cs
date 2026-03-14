@@ -22,6 +22,21 @@ internal static class Executable
             }
             else files.Add(path);
 
+            List<string> excludeFile = new(files.Count);
+            foreach (var file in files)
+            {
+                var extension = Path.GetExtension(file);
+                switch (extension)
+                {
+                    case ".xmp":
+                    case ".txt":
+                        excludeFile.Add(file);
+                        break;
+                }
+            }
+            excludeFile.ForEach(x => files.Remove(x));
+            excludeFile.Clear();
+            
             string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileLocationOption);
             if (files.Count > 1 && xmpFileLocation != null)
             {
@@ -58,6 +73,9 @@ internal static class Executable
             case "mp4":
             case "mkv":
                 break;
+            case ".xmp":
+            case ".txt":
+                return true;
             default:
                 Log.Error($"File {filename} is unsupported.");
                 return true;
