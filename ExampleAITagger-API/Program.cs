@@ -8,21 +8,111 @@ internal class Program
     /// <summary>
     /// Sets maximum form files size for request.
     /// </summary>
-    const int MaxFileSizeInMb = 1024;
+    public static int MaxFileSizeInMb = 1024;
 
+    /// <summary>
+    /// Sets maximum time before uploaded file will be removed.
+    /// </summary>
+    public static int MaxFileStoreTimeInMin = 60 * 4;
+
+    private static Dictionary<string, DateTime> FileRemovingStruct = new ();
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxFileSizeInMb * 1024 * 1024);
 
         var app = builder.Build();
+        // Clearing temp upload folder on startup
         Directory.Delete(Path.Combine(Directory.GetCurrentDirectory(), "temp"), true);
         app.UseHttpsRedirection();
         
         app.MapPost("/desc", Desc)
-            .WithName("AIDescription");
-
+            .WithName("SingleFileDescription");
+        app.MapPost("/desc/bulk/upload", Upload)
+            .WithName("BulkFileUpload");
+        app.MapPost("/desc/bulk/fetch", Fetch)
+            .WithName("BulkFileDescription");
+        Task.Run(() =>
+        {
+            while (!app.Lifetime.ApplicationStopping.IsCancellationRequested)
+            {
+                Thread.Sleep(60 * 1000);
+                List<string> remove = new();
+                foreach (var fileRemDate in FileRemovingStruct)
+                {
+                    if (fileRemDate.Value < DateTime.Now)
+                    {
+                        try
+                        {
+                            File.Delete(fileRemDate.Key);
+                            remove.Add(fileRemDate.Key);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to delete {fileRemDate.Key}: {ex.Message}");
+                        }
+                    }
+                }
+                remove.ForEach(x => FileRemovingStruct.Remove(x));
+            }
+        });
         app.Run();
+    }
+    
+    /// <summary>
+    /// /desc/bulk/upload path for TaggerAPI bulk file upload. After uploading, files will be stored on server for 4 hours. Returns 
+    /// </summary>
+    /// <param name="r"></param>
+    private static async Task Upload(HttpContext r)
+    {
+        IFormFile formFile = r.Request.Form.Files.First();
+        
+        var filePath = await SaveFileToDrive(formFile);
+        
+        await r.Response.WriteAsync(filePath);
+
+        FileRemovingStruct.Add(filePath, DateTime.Now.AddMinutes(MaxFileStoreTimeInMin));
+    }
+    
+    private static async Task Fetch(HttpContext r)
+    {
+        List<string>? input = (await r.Request.ReadFromJsonAsync<Dictionary<string, string>.ValueCollection>())?.ToList();
+        if (input == null) return;
+        List<string> filepaths = new();
+        foreach (var filepath in input)
+        {
+            if (!File.Exists(filepath)) continue;
+            // Prepare your files
+            filepaths.Add(filepath);
+        }
+
+        var output = new List<SingleFileResponse>();
+        foreach (var filepath in filepaths)
+        {
+            var result = "";
+            try
+            {
+                // ... connect to AI model and get results
+                result = RunModel(filepath);
+            } // when failed, skip file
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                continue;
+            }
+        
+            // ... parse results and put into results variable
+            result = ParseResults(result);
+            output.Add(new SingleFileResponse(filepath, result, ApiId));
+            
+            // Deleting temp file
+            File.Delete(filepath);
+        }
+        await r.Response.WriteAsJsonAsync(new MultiFileResponse()
+        {
+            EndpointId = ApiId,
+            Files = output.ToArray()
+        });
     }
 
     /// <summary>
@@ -32,29 +122,78 @@ internal class Program
     {
         // This variable contains form for file
         IFormFile formFile = r.Request.Form.Files.First();
-
-        // This variable contains file bytes
-        byte[] file = new byte[formFile.Length];
-        await formFile.OpenReadStream().ReadExactlyAsync(file);
-        // ...from here
         
+        // This variable container path to file on drive
+        var filePath = await SaveFileToDrive(formFile);
+
         // Variable for results
         string results = string.Empty;
         
-        // Writing file to temp folder
-        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "temp", Path.GetRandomFileName() + "_" + formFile.FileName);
-        Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "temp"));
-        using (var f = File.Create(filePath)) await f.WriteAsync(file);
-        
         // ... connect to AI model and get results
+        try
+        {
+            results = RunModel(filePath);
+        } // when failed, send error status code
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            r.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return;
+        }
         
         // ... parse results and put into results variable
-        results = "Tag1, Tag2, Tag3";
+        results = ParseResults(results);
         
         r.Response.Headers.Append("Endpoint-Id", ApiId);
         await r.Response.WriteAsync(results);
         
         // Deleting temp file
         File.Delete(filePath);
+    }
+
+    private static string ParseResults(string results)
+    {
+        // Result should be in format "tag1, tag2, ..."
+        return results.Replace(";", ", ");
+    }
+
+    private static string RunModel(string filePath)
+    {
+        return "Tag;Tag2;Tag3";
+    }
+
+    private static async Task<string> SaveFileToDrive(IFormFile formFile)
+    {
+        byte[] fileBytes = new byte[formFile.Length];
+        await formFile.OpenReadStream().ReadExactlyAsync(fileBytes);
+        var filePath = await WriteFileToDrive(formFile, fileBytes);
+        return filePath;
+    }
+
+    private static async Task<string> WriteFileToDrive(IFormFile formFile, byte[] file)
+    {
+        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "temp", Path.GetRandomFileName() + "_" + formFile.FileName);
+        Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "temp"));
+        using (var f = File.Create(filePath)) await f.WriteAsync(file);
+        return filePath;
+    }
+    
+    public class MultiFileResponse
+    {
+        public string EndpointId;
+        public SingleFileResponse[] Files;
+    }
+    public class SingleFileResponse
+    {
+        public string Filename;
+        public string Data;
+        public string EndpointId;
+
+        public SingleFileResponse(string filename, string data, string endpointId)
+        {
+            Filename = filename;
+            Data = data;
+            EndpointId = endpointId;
+        }
     }
 }
