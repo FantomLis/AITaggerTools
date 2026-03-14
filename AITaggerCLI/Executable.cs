@@ -364,7 +364,7 @@ internal static class Executable
                 xmpMeta = XmpManager.LoadFile(filename);
                 _DrawProperties(xmpMeta, "All properties: ");
 #endif
-                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == filename, null);
+                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
                 if (fileResult == null)
                 {
                     statusList.Add(TagApplierStatus.BAD_RESPONSE);
