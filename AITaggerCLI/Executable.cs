@@ -149,11 +149,15 @@ internal static class Executable
                         fileSkipped++;
                         Log.Information($"File {curProcFiles[i]} skipped.");
                     }
-                    else
+                    else if (tagApplierStatus == TagApplierStatus.OK)
                     {
                         Log.Information($"File {curProcFiles[i]} done.");
                     }
-
+                    else
+                    {
+                        Log.Information($"File {curProcFiles[i]} failed.");
+                    }
+                    fileStatuses.Add(curProcFiles[i], tagApplierStatus);
                     unprocessedFiles.Remove(curProcFiles[i]);
                     currentFile++;
                 }
