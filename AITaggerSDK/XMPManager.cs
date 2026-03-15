@@ -133,6 +133,7 @@ public static class XmpManager
         return xmpMeta;
     }
 
+    [Pure]
     public static string ToXmpFileName(this string name)
     {
         return $"{name.Replace(".xmp", "")}.xmp";
