@@ -132,11 +132,15 @@ internal static class Executable
 
     private static void _LogFailedFiles(Dictionary<string, TagApplierStatus> fileStatuses)
     {
-        Log.Error("This files failed to process: ");
+        bool isAnyFailed = false;
         foreach (var (key, value) in fileStatuses)
         {
-            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED) 
+            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED)
+            {
+                if (!isAnyFailed) Log.Error("This files failed to process: ");
+                isAnyFailed = true;
                 Log.Error($"{key}: {value.ToString()}");
+            }
         }
     }
 
