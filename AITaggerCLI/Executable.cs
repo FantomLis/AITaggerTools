@@ -272,7 +272,7 @@ internal static class Executable
             
             fileStreams.Add(new FileStream(filename, FileMode.Open));
         }
-        var apiResponse = APICaller.RequestMultiFileDescription(endpointUrl, fileStreams.ToArray()).Result;
+        var apiResponse = APICaller.RequestFilesDescription(endpointUrl, fileStreams.ToArray()).Result;
         
         //Close files after processing every file
         fileStreams.ForEach(x => x.Close());
@@ -314,103 +314,6 @@ internal static class Executable
             }
         }
         return statusList.ToArray();
-    }
-    
-    //TODO: Remove this method
-    [Obsolete("Use _UseFiles instead. This method uses old /desc path and will not work with new version.", true)]
-    private static TagApplierStatus UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
-    {
-        switch (ExtensionTools.GetClearExtension(Path.GetExtension(filename)))
-        {
-            case "png":
-            case "jpg":
-            case "jpeg":
-            case "webp":
-            case "gif":
-            case "avi":
-            case "mp4":
-            case "mkv":
-                break;
-            case ".xmp":
-            case ".txt":
-                return TagApplierStatus.SKIPPED;
-            default:
-                Log.Error($"File {filename} is unsupported.");
-                return TagApplierStatus.INVALID_TYPE;
-        }
-
-        try
-        {
-            Log.Information($"Processing {filename}.");
-            var tagApplierStatus = GenerateDescription(filename, endpointUrl, backup, quick, saveFileName);
-            Log.Information(tagApplierStatus == TagApplierStatus.SKIPPED
-                ? $"File {filename} skipped."
-                : $"File {filename} done.");
-            return tagApplierStatus;
-        }
-        catch (XmpException ex)
-        {
-            Log.Error($"Failed to open .xmp file: {ex.Message}");
-            Log.Debug(ex, "");
-            return TagApplierStatus.INVALID_FILE;
-        }
-        catch (HttpRequestException ex)
-        {
-            Log.Error($"Error when requesting data: {ex.Message}");
-            Log.Debug(ex, "");
-            return TagApplierStatus.NETWORK_FAILURE;
-        }
-        catch (AggregateException ex)
-        {
-            var msg = "Unhandled error";
-            var failureStatus = TagApplierStatus.FAILED;
-            if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
-            {
-                msg = "Invalid endpoint";
-                failureStatus = TagApplierStatus.NETWORK_FAILURE;
-                return failureStatus;
-            }
-            else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
-            {
-                msg = "Server failed to respond";
-                failureStatus = TagApplierStatus.NETWORK_FAILURE;
-                return failureStatus;
-            }
-
-            Log.Error($"{msg}: {ex.InnerException?.Message}");
-            Log.Debug(ex, "");
-            return failureStatus;
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Unhandled error: {ex}");
-            Log.Debug(ex, "");
-            return TagApplierStatus.FAILED;
-        }
-    }
-    
-    //TODO: Remove this method
-    [Obsolete("Use _GenerateDescriptionForFiles instead. This method uses old /desc path and will not work with new version.", true)]
-    private static TagApplierStatus GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true, string? saveFileName = null)
-    {
-        if (!File.Exists(filename)) throw new ArgumentException("File does not exist.");
-        APICaller.SingleFileResponse apiResponse;
-        using (var fileStream = File.OpenRead(filename)) apiResponse = APICaller.RequestSingleFileDescription(endpointUrl, fileStream).Result;
-        IXmpMeta xmpMeta;
-        TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
-        
-#if DEBUG
-        xmpMeta = XmpManager.LoadFile(filename);
-        _DrawProperties(xmpMeta, "All properties: ");
-#endif
-        xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, apiResponse.Data, out tagApplierStatus) :
-            TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, apiResponse.Data);
-            
-#if DEBUG
-        _DrawProperties(xmpMeta, "All properties after update: ");
-#endif
-        xmpMeta.SaveFile((saveFileName ?? filename).ToXmpFileName(), backupPath);
-        return tagApplierStatus;
     }
 
 #if DEBUG
