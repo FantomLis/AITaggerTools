@@ -310,7 +310,7 @@ internal static class Executable
             }
             catch (XmpException e)
             {
-                throw new MultiFileException(e, filename);
+                throw new MultiFileException(filename, e);
             }
         }
         return statusList.ToArray();
