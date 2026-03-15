@@ -192,9 +192,9 @@ internal static class Executable
                 case "webm":
                     unprocessedFiles.Add(filename);
                     break;
-                case ".xmp":
-                case ".txt":
                     fileStatuses.Add(filename, TagApplierStatus.SKIPPED);
+                case "xmp":
+                case "txt":
                     continue;
                 default:
                     Log.Error($"File {filename} is unsupported.");
