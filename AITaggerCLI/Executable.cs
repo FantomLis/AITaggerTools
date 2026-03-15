@@ -150,7 +150,7 @@ internal static class Executable
         int currentFile = 0, fileCount = xmpFiles.Count, fileSkipped = 0;
         foreach (var file in xmpFiles)      
         {
-            _LogProgress(currentFile, fileCount, fileSkipped);
+            UITools._LogProgress(currentFile, fileCount, fileSkipped);
             try
             {
                 IXmpMeta xmpMeta = XmpManager.LoadFile(file);
@@ -163,7 +163,7 @@ internal static class Executable
             }
             finally{currentFile++;}
         }
-        _LogProgress(currentFile, fileCount, fileSkipped);
+        UITools._LogProgress(currentFile, fileCount, fileSkipped);
     }
 
     private static void _StartAsWebUI()
@@ -177,7 +177,7 @@ internal static class Executable
         List<string> unprocessedFiles = new(filenames.Length);
         foreach (var filename in filenames)
         {
-            switch (_GetClearExtension(filename))
+            switch (ExtensionTools.GetClearExtension(filename))
             {
                 case "png":
                 case "jpg":
@@ -205,7 +205,7 @@ internal static class Executable
         {
             try
             {
-                _LogProgress(currentFile, fileCount, fileSkipped);
+                UITools._LogProgress(currentFile, fileCount, fileSkipped);
                 var curProcFiles = unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray();
                 var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup, quick);
                 for (var i = 0; i < tagApplierStatuses.Length; i++)
@@ -259,7 +259,7 @@ internal static class Executable
                 return null;
             }
         }
-        _LogProgress(currentFile, fileCount, fileSkipped);
+        UITools._LogProgress(currentFile, fileCount, fileSkipped);
         return fileStatuses;
     }
 
@@ -431,11 +431,6 @@ internal static class Executable
     {
         Log.Debug(ex, "");
     }
-
-    private static string _GetClearExtension(string filename)
-    {
-        return Path.GetExtension(filename).Replace(".", "");
-    }
     
     private static List<string> _GetAllFiles(string[] paths)
     {
@@ -485,13 +480,6 @@ internal static class Executable
     private static void _FormattedError(string reason, string? message)
     {
         Log.Error($"{reason}{(message is null ? "": ": ")}{message}");
-    }
-
-    private static void _LogProgress(int currentFile, int fileCount, int fileSkipped)
-    {
-        int progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
-        Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
-                        $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
     }
     
     private static void _SetupLogger()
