@@ -138,20 +138,6 @@ internal static class Executable
         _LogFailedFiles(fileStatuses);
     }
 
-    private static void _LogFailedFiles(Dictionary<string, TagApplierStatus> fileStatuses)
-    {
-        bool isAnyFailed = false;
-        foreach (var (key, value) in fileStatuses)
-        {
-            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED)
-            {
-                if (!isAnyFailed) Log.Error("This files failed to process: ");
-                isAnyFailed = true;
-                Log.Error($"{key}: {value.ToString()}");
-            }
-        }
-    }
-
     private static void _StartAsCleaner(List<string> files, string clearTag, string? backupFile)
     {
         List<string> xmpFiles = new(files.Count);
@@ -180,55 +166,11 @@ internal static class Executable
         _LogProgress(currentFile, fileCount, fileSkipped);
     }
 
-    private static void _FormattedError(string reason, string? message)
-    {
-        Log.Error($"{reason}{(message is null ? "": ": ")}{message}");
-    }
-
-    private static void _LogProgress(int currentFile, int fileCount, int fileSkipped)
-    {
-        int progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
-        Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
-                        $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
-    }
-
     private static void _StartAsWebUI()
     {
         throw new NotImplementedException("Currently WebUI is not implemented.");
     }
-
-    private static List<string> _GetAllFiles(string[] paths)
-    {
-        List<string> files = new();
-        foreach (var path in paths)
-        {
-            if (File.GetAttributes(path).Equals(FileAttributes.Directory))
-            {
-                files.AddRange(Directory.GetFiles(path));
-            }
-            else files.Add(path);
-        }
-
-        return files;
-    }
-
-    private static void _ExcludeTextFiles(List<string> files)
-    {
-        List<string> excludeFile = new(files.Count);
-        foreach (var file in files)
-        {
-            var extension = Path.GetExtension(file);
-            switch (extension)
-            {
-                case ".xmp":
-                case ".txt":
-                    excludeFile.Add(file);
-                    break;
-            }
-        }
-        excludeFile.ForEach(x => files.Remove(x));
-    }
-
+    
     private static Dictionary<string,TagApplierStatus>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
         Dictionary<string, TagApplierStatus> fileStatuses = new Dictionary<string, TagApplierStatus>(filenames.Length);
@@ -319,16 +261,6 @@ internal static class Executable
         }
         _LogProgress(currentFile, fileCount, fileSkipped);
         return fileStatuses;
-    }
-
-    private static void _DebugLogError(Exception ex)
-    {
-        Log.Debug(ex.InnerException, "");
-    }
-
-    private static string _GetClearExtension(string filename)
-    {
-        return Path.GetExtension(filename).Replace(".", "");
     }
 
     private static TagApplierStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null, bool quick = true)
@@ -494,6 +426,73 @@ internal static class Executable
         Log.Debug("============================");
     }
 #endif
+    
+    private static void _DebugLogError(Exception ex)
+    {
+        Log.Debug(ex.InnerException, "");
+    }
+
+    private static string _GetClearExtension(string filename)
+    {
+        return Path.GetExtension(filename).Replace(".", "");
+    }
+    
+    private static List<string> _GetAllFiles(string[] paths)
+    {
+        List<string> files = new();
+        foreach (var path in paths)
+        {
+            if (File.GetAttributes(path).Equals(FileAttributes.Directory))
+            {
+                files.AddRange(Directory.GetFiles(path));
+            }
+            else files.Add(path);
+        }
+
+        return files;
+    }
+
+    private static void _ExcludeTextFiles(List<string> files)
+    {
+        List<string> excludeFile = new(files.Count);
+        foreach (var file in files)
+        {
+            var extension = Path.GetExtension(file);
+            switch (extension)
+            {
+                case ".xmp":
+                case ".txt":
+                    excludeFile.Add(file);
+                    break;
+            }
+        }
+        excludeFile.ForEach(x => files.Remove(x));
+    }
+    
+    private static void _LogFailedFiles(Dictionary<string, TagApplierStatus> fileStatuses)
+    {
+        bool isAnyFailed = false;
+        foreach (var (key, value) in fileStatuses)
+        {
+            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED)
+            {
+                if (!isAnyFailed) Log.Error("This files failed to process: ");
+                isAnyFailed = true;
+                Log.Error($"{key}: {value.ToString()}");
+            }
+        }
+    }
+    private static void _FormattedError(string reason, string? message)
+    {
+        Log.Error($"{reason}{(message is null ? "": ": ")}{message}");
+    }
+
+    private static void _LogProgress(int currentFile, int fileCount, int fileSkipped)
+    {
+        int progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
+        Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
+                        $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
+    }
     
     private static void _SetupLogger()
     {
