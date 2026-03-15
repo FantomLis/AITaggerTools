@@ -10,68 +10,153 @@ internal static class Executable
     public static int FileSendCount = 10;
     public static int Main(string[] args)
     {
-        SetupLogger();
-        var rootCommand = CreateRootCommand(out var inputOption, out var endpointOption, out var xmpFileLocationOption, 
-            out var backupOption, out var quickOption, out var webuiOption, out var clearTagsOption);
-        rootCommand.Validators.Add(parseResult =>
-        {
-            var clearTag = parseResult.GetValue<string?>(clearTagsOption);
-            string? endpointUrl = parseResult.GetValue<string?>(endpointOption);
+        #region Program setup
+        
+        _SetupLogger();
+        var cmd = _CreateTaggerCommand(out var inputPathsOption, out var endpointUrlOption, out var xmpFileSavePathOption, 
+            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption);
+        string? endpointUrl = null, clearTag = null;
+        
+        #endregion
+        
+        cmd.Validators.Add(parseResult => {
+            clearTag = parseResult.GetValue<string?>(clearTagsOption);
+            endpointUrl = parseResult.GetValue<string?>(endpointUrlOption);
             if (endpointUrl == null && clearTag == null) parseResult.AddError("Endpoint should be present.");
         });
-        rootCommand.SetAction(parseResult =>
+        
+        cmd.SetAction(parseResult =>
         {
             if (parseResult.GetValue<bool>(webuiOption) == true)
             {
-                throw new NotImplementedException("Currently WebUI is not implemented.");
-            }
-            string[] paths = parseResult.GetValue(inputOption)!;
-            string endpointUrl = parseResult.GetValue(endpointOption)!;
-            var files = GetAllFiles(paths);
-
-            ExcludeTextFiles(files);
-
-            var clearTag = parseResult.GetValue<string?>(clearTagsOption);
-            var backupFile = parseResult.GetValue<string?>(backupOption);
-            if (clearTag != null)
-            {
-                foreach (var file in files)
-                {
-                    IXmpMeta xmpMeta = XmpManager.LoadFile(file);
-                    xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile != null, backupFile);
-                }
+                _StartAsWebUI();
                 return;
             }
             
-            string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileLocationOption);
-            if (files.Count > 1)
+            string[] paths = parseResult.GetValue(inputPathsOption)!;
+            string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
+            
+            List<string> fileList = _GetAllFiles(paths);
+            _ExcludeTextFiles(fileList);
+            
+            if (clearTag != null)
             {
-                if (xmpFileLocation != null)
-                {
-                    Log.Error("--output option will be ignored, multiple files supplied.");
-                }
-                var fileStatuses = UseFiles(files.ToArray(), endpointUrl,
-                    backupFile, parseResult.GetValue<bool>(quickOption));
-                if (fileStatuses is null)  return;
-                Log.Error("This files failed to process: ");
-                foreach (var (key, value) in fileStatuses)
-                {
-                    if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED) 
-                        Log.Error($"{key}: {value.ToString()}");
-                }
+                _StartAsCleaner(fileList, clearTag, pathToBackup);
+                return;
             }
-            else
-            {
-                UseFile(files.First(), endpointUrl,
-                    backupFile, parseResult.GetValue<bool>(quickOption),
-                    xmpFileLocation);
-            }
+            
+            string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileSavePathOption);
+            bool quick = parseResult.GetValue<bool>(quickOption);
+            
+            _StartAsTagger(fileList, xmpFileLocation, endpointUrl, pathToBackup, quick);
         });
 
-        return rootCommand.Parse(args).Invoke();
+        return cmd.Parse(args).Invoke();
+    }
+    
+    private static RootCommand _CreateTaggerCommand(out Option<string[]> inputPathsOption, out Option<string?> endpointUrlOption,
+        out Option<string?> xmpFileSavePathOption, out Option<string?> backupPathOption, out Option<bool> quickOption, out Option<bool> webuiOption,
+        out Option<string?> clearTagsOption)
+    {
+        RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
+                                      "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
+                                      "Requires AITagger REST API endpoint to send your images/videos.\n" +
+                                      "When using folder, tool will scan all folders inside and scan every file.");
+
+        inputPathsOption = new("--input", "-i")
+        {
+            Description = "Input file (should be video or image) or folder. Multiple inputs allowed.",
+            Required = true,
+            AllowMultipleArgumentsPerToken = true
+        };
+        endpointUrlOption = new("--endpoint", "-e")
+        {
+            Description = "REST API endpoint, that supports PUT /desc with image uploading.",
+            Required = false,
+            DefaultValueFactory = _ => null
+        };
+        xmpFileSavePathOption = new("--output", "-o")
+        {
+            Description = "Target file for .xmp files. Will be ignored when multiple inputs or directory as input is used.",
+            Required = false,
+            DefaultValueFactory = _ => null
+        };
+        backupPathOption = new("--backup", "-b")
+        {
+            Description = "Move original file to other location with old_[DATE] prefix.",
+            Required = false,
+            DefaultValueFactory = _ => null
+        };
+        quickOption = new("--quick-apply", "-q", "-quick")
+        {
+            Description = "Checks if any tag in .xmp file has endpoint id and skips file if so.",
+            Required = false,
+            DefaultValueFactory = _ => true
+        };
+        webuiOption = new("--webui", "-ui", "-u")
+        {
+            Description = "Starts WebUI instead of CLI.",
+            Required = false,
+            DefaultValueFactory = _ => false
+        };
+        clearTagsOption = new("--clear", "-c")
+        {
+            Description = "Removes all tags with this endpoint id.",
+            Required = false,
+            DefaultValueFactory = _ => null
+        };
+
+        rootCommand.Options.Add(inputPathsOption);
+        rootCommand.Options.Add(endpointUrlOption);
+        rootCommand.Options.Add(xmpFileSavePathOption);
+        rootCommand.Options.Add(backupPathOption);
+        rootCommand.Options.Add(quickOption);
+        rootCommand.Options.Add(webuiOption);
+        rootCommand.Options.Add(clearTagsOption);
+        return rootCommand;
     }
 
-    private static List<string> GetAllFiles(string[] paths)
+    private static void _StartAsTagger(List<string> fileList, string? xmpFileLocation, string? endpointUrl, string? pathToBackup,
+        bool quick)
+    {
+        if (fileList.Count > 1 && xmpFileLocation is not null)
+        {
+            Log.Error("--output option will be ignored, multiple files supplied.");
+        }
+        
+        var fileStatuses = _UseFiles(fileList.ToArray(), endpointUrl!,
+            pathToBackup, quick);
+        if (fileStatuses is null)  return;
+        _LogFailedFiles(fileStatuses);
+    }
+
+    private static void _LogFailedFiles(Dictionary<string, TagApplierStatus> fileStatuses)
+    {
+        Log.Error("This files failed to process: ");
+        foreach (var (key, value) in fileStatuses)
+        {
+            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED) 
+                Log.Error($"{key}: {value.ToString()}");
+        }
+    }
+
+    private static void _StartAsCleaner(List<string> files, string clearTag, string? backupFile)
+    {
+        //TODO: Add progress logging
+        //TODO: Make XmpManager load passed filename and not convert filename to .xmp
+        foreach (var file in files)
+        {
+            IXmpMeta xmpMeta = XmpManager.LoadFile(file);
+            xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile != null, backupFile);
+        }
+    }
+
+    private static void _StartAsWebUI()
+    {
+        throw new NotImplementedException("Currently WebUI is not implemented.");
+    }
+
+    private static List<string> _GetAllFiles(string[] paths)
     {
         List<string> files = new();
         foreach (var path in paths)
@@ -86,7 +171,7 @@ internal static class Executable
         return files;
     }
 
-    private static void ExcludeTextFiles(List<string> files)
+    private static void _ExcludeTextFiles(List<string> files)
     {
         List<string> excludeFile = new(files.Count);
         foreach (var file in files)
@@ -103,13 +188,13 @@ internal static class Executable
         excludeFile.ForEach(x => files.Remove(x));
     }
 
-    private static Dictionary<string,TagApplierStatus>? UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
+    private static Dictionary<string,TagApplierStatus>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
         Dictionary<string, TagApplierStatus> fileStatuses = new Dictionary<string, TagApplierStatus>(filenames.Length);
         List<string> unprocessedFiles = new(filenames.Length);
         foreach (var filename in filenames)
         {
-            switch (Path.GetExtension(filename).Replace(".", ""))
+            switch (GetClearExtension(filename))
             {
                 case "png":
                 case "jpg":
@@ -141,7 +226,7 @@ internal static class Executable
                 Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
                                 $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
                 var curProcFiles = unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray();
-                var tagApplierStatuses = GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup, quick);
+                var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup, quick);
                 for (var i = 0; i < tagApplierStatuses.Length; i++)
                 {
                     var tagApplierStatus = tagApplierStatuses[i];
@@ -197,7 +282,67 @@ internal static class Executable
                         $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
         return fileStatuses;
     }
+
+    private static string GetClearExtension(string filename)
+    {
+        return Path.GetExtension(filename).Replace(".", "");
+    }
+
+    private static TagApplierStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null, bool quick = true)
+    {
+        List<FileStream> fileStreams = new();
+        foreach (var filename in filenames)
+        {
+            if (!File.Exists(filename)) throw new ArgumentException($"File {filename} does not exist.");
+            
+            fileStreams.Add(new FileStream(filename, FileMode.Open));
+        }
+        var apiResponse = APICaller.RequestMultiFileDescription(endpointUrl, fileStreams.ToArray()).Result;
+        
+        //Close files after processing every file
+        fileStreams.ForEach(x => x.Close());
+        fileStreams.ForEach(x => x.Dispose());
+        fileStreams.Clear();
+        
+        List<TagApplierStatus> statusList = new(filenames.Length);
+        foreach (var filename in filenames)
+        {
+            IXmpMeta xmpMeta;
+            TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
+            try
+            {
+#if DEBUG
+                xmpMeta = XmpManager.LoadFile(filename);
+                Log.Debug("All properties: ");
+                _DrawProperties(xmpMeta);
+#endif
+                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
+                if (fileResult == null)
+                {
+                    statusList.Add(TagApplierStatus.BAD_RESPONSE);
+                    continue;
+                }
+                xmpMeta = quick
+                    ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data,
+                        out tagApplierStatus)
+                    : TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data);
+#if DEBUG
+                Log.Debug("All properties after update: ");
+                _DrawProperties(xmpMeta);
+#endif
+                xmpMeta.SaveFile(filename, backupPath != null, backupPath ?? "");
+                statusList.Add(tagApplierStatus);
+            }
+            catch (XmpException e)
+            {
+                throw new MultiFileException(e, filename);
+            }
+        }
+        return statusList.ToArray();
+    }
     
+    //TODO: Remove this method
+    [Obsolete("Use _UseFiles instead. This method uses old /desc path and will not work with new version.", true)]
     private static TagApplierStatus UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
     {
         switch (Path.GetExtension(filename).Replace(".", ""))
@@ -268,126 +413,9 @@ internal static class Executable
             return TagApplierStatus.FAILED;
         }
     }
-
-    private static void SetupLogger()
-    {
-        Log.Logger = new LoggerConfiguration()
-#if DEBUG
-            .MinimumLevel.Debug()
-#endif
-            .WriteTo.Console().CreateLogger();
-    }
-
-    private static RootCommand CreateRootCommand(out Option<string[]> inputOption, out Option<string?> endpointOption,
-        out Option<string?> xmpFileLocationOption, out Option<string?> backupOption, out Option<bool> quickOption, out Option<bool> webuiOption,
-        out Option<string?> clearTagsOption)
-    {
-        RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
-                                      "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
-                                      "Requires AITagger REST API endpoint to send your images/videos.\n" +
-                                      "When using folder, tool will scan all folders inside and scan every file.");
-
-        inputOption = new("--input", "-i")
-        {
-            Description = "Input file (should be video or image) or folder. Multiple inputs allowed.",
-            Required = true,
-            AllowMultipleArgumentsPerToken = true
-        };
-        endpointOption = new("--endpoint", "-e")
-        {
-            Description = "REST API endpoint, that supports PUT /desc with image uploading.",
-            Required = false,
-            DefaultValueFactory = _ => null
-        };
-        xmpFileLocationOption = new("--output", "-o")
-        {
-            Description = "Target file for .xmp files. Will be ignored when multiple inputs or directory as input is used.",
-            Required = false,
-            DefaultValueFactory = _ => null
-        };
-        backupOption = new("--backup", "-b")
-        {
-            Description = "Move original file to other location with old_[DATE] prefix.",
-            Required = false,
-            DefaultValueFactory = _ => null
-        };
-        quickOption = new("--quick-apply", "-q", "-quick")
-        {
-            Description = "Checks if any tag in .xmp file has endpoint id and skips file if so.",
-            Required = false,
-            DefaultValueFactory = _ => true
-        };
-        webuiOption = new("--webui", "-ui", "-u")
-        {
-            Description = "Starts WebUI instead of CLI.",
-            Required = false,
-            DefaultValueFactory = _ => false
-        };
-        clearTagsOption = new("--clear", "-c")
-        {
-            Description = "Removes all tags with this endpoint id.",
-            Required = false,
-            DefaultValueFactory = _ => null
-        };
-
-        rootCommand.Options.Add(inputOption);
-        rootCommand.Options.Add(endpointOption);
-        rootCommand.Options.Add(xmpFileLocationOption);
-        rootCommand.Options.Add(backupOption);
-        rootCommand.Options.Add(quickOption);
-        rootCommand.Options.Add(webuiOption);
-        rootCommand.Options.Add(clearTagsOption);
-        return rootCommand;
-    }
-
-    private static TagApplierStatus[] GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null, bool quick = true)
-    {
-        List<FileStream> fileStreams = new();
-        foreach (var filename in filenames)
-        {
-            if (!File.Exists(filename)) throw new ArgumentException($"File {filename} does not exist.");
-            
-            fileStreams.Add(new FileStream(filename, FileMode.Open));
-        }
-        var apiResponse = APICaller.RequestMultiFileDescription(endpointUrl, fileStreams.ToArray()).Result;
-        IXmpMeta xmpMeta;
-        TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
-        fileStreams.ForEach(x => x.Close());
-        fileStreams.ForEach(x => x.Dispose());
-            
-        List<TagApplierStatus> statusList = new(filenames.Length);
-        foreach (var filename in filenames)
-        {
-            try
-            {
-#if DEBUG
-                xmpMeta = XmpManager.LoadFile(filename);
-                _DrawProperties(xmpMeta, "All properties: ");
-#endif
-                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
-                if (fileResult == null)
-                {
-                    statusList.Add(TagApplierStatus.BAD_RESPONSE);
-                    continue;
-                }
-                xmpMeta = quick
-                    ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data,
-                        out tagApplierStatus)
-                    : TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data);
-#if DEBUG
-                _DrawProperties(xmpMeta, "All properties after update: ");
-#endif
-                xmpMeta.SaveFile(filename, backupPath != null, backupPath ?? "");
-                statusList.Add(tagApplierStatus);
-            }
-            catch (XmpException e)
-            {
-                throw new MultiFileException(e, filename);
-            }
-        }
-        return statusList.ToArray();
-    }
     
+    //TODO: Remove this method
+    [Obsolete("Use _GenerateDescriptionForFiles instead. This method uses old /desc path and will not work with new version.", true)]
     private static TagApplierStatus GenerateDescription(string filename, string endpointUrl, string? backupPath = null, bool quick = true, string? saveFileName = null)
     {
         if (!File.Exists(filename)) throw new ArgumentException("File does not exist.");
@@ -409,13 +437,27 @@ internal static class Executable
         xmpMeta.SaveFile(saveFileName ?? filename, (backupPath != null), backupPath ?? "");
         return tagApplierStatus;
     }
+
 #if DEBUG
-    private static void _DrawProperties(IXmpMeta xmpMeta, string text)
+    /// <summary>
+    /// Shows properties from xmpMeta
+    /// </summary>
+    /// <param name="xmpMeta"></param>
+    /// <param name="text"></param>
+    private static void _DrawProperties(IXmpMeta xmpMeta)
     {
-        Log.Debug(text);
         foreach (var property in xmpMeta.Properties)
             Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
         Log.Debug("============================");
     }
 #endif
+    
+    private static void _SetupLogger()
+    {
+        Log.Logger = new LoggerConfiguration()
+#if DEBUG
+            .MinimumLevel.Debug()
+#endif
+            .WriteTo.Console().CreateLogger();
+    }
 }
