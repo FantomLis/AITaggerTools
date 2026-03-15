@@ -192,9 +192,9 @@ internal static class Executable
                 case "webm":
                     unprocessedFiles.Add(filename);
                     break;
-                    fileStatuses.Add(filename, TagApplierStatus.SKIPPED);
                 case "xmp":
                 case "txt":
+                    fileStatuses.Add(filename, TagApplierStatus.IGNORE);
                     continue;
                 default:
                     Log.Error($"File {filename} is unsupported.");
@@ -380,7 +380,7 @@ IXmpMeta xmpMeta =
         bool isAnyFailed = false;
         foreach (var (key, value) in fileStatuses)
         {
-            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED)
+            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED && value != TagApplierStatus.IGNORE)
             {
                 if (!isAnyFailed) Log.Error("This files failed to process: ");
                 isAnyFailed = true;

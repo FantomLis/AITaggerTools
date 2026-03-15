@@ -10,4 +10,5 @@ public enum TagApplierStatus : byte
     NETWORK_FAILURE = 5,
     BAD_RESPONSE = 6,
     SERVER_RESPONSE_FILE_NOT_FOUND = 7,
+    IGNORE = 8
 }
