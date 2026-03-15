@@ -235,7 +235,7 @@ internal static class Executable
         List<string> unprocessedFiles = new(filenames.Length);
         foreach (var filename in filenames)
         {
-            switch (GetClearExtension(filename))
+            switch (_GetClearExtension(filename))
             {
                 case "png":
                 case "jpg":
@@ -326,7 +326,7 @@ internal static class Executable
         Log.Debug(ex.InnerException, "");
     }
 
-    private static string GetClearExtension(string filename)
+    private static string _GetClearExtension(string filename)
     {
         return Path.GetExtension(filename).Replace(".", "");
     }
