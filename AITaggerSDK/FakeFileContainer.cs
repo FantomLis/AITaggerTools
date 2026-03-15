@@ -1,7 +1,7 @@
 ﻿namespace AITaggerSDK;
 
-public class FakeFileContainer
+public record FakeFileContainer(Stream File, string Filename)
 {
-    public Stream File;
-    public string Filename;
+    public readonly Stream File = File;
+    public readonly string Filename = Filename;
 }

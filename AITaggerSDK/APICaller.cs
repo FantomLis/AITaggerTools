@@ -8,7 +8,7 @@ namespace AITaggerSDK;
 public static class APICaller
 {
     public static async Task<MultiFileResponse> RequestFilesDescription(string endpointUrl, params FileStream[] files)
-        => await RequestFilesDescription(endpointUrl, files.Select(x => new FakeFileContainer {File = x, Filename = x.Name}).ToArray());
+        => await RequestFilesDescription(endpointUrl, files.Select(x => new FakeFileContainer (x, x.Name)).ToArray());
     public static async Task<MultiFileResponse> RequestFilesDescription(string endpointUrl, params FakeFileContainer[] files)
     {
         HttpClient client = new HttpClient();
