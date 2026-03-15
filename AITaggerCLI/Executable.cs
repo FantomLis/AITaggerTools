@@ -7,6 +7,14 @@ namespace AITaggerCLI;
 
 internal static class Executable
 {
+    #region Error strings
+
+    private const string FAILED_TO_PROCESS_FILE = "Failed to process file {0}";
+    private const string UNHANDLED_ERROR = "Unhandled error";
+    private const string SERVER_RESPOND_FAIL = "Server failed to respond";
+    private const string INVALID_ENDPOINT = "Invalid endpoint";
+
+    #endregion
     public static int FileSendCount = 10;
     public static int Main(string[] args)
     {
@@ -164,12 +172,17 @@ internal static class Executable
             }
             catch (XmpException ex)
             {
-                Log.Error($"Failed to process file: {ex.Message}");
+                _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, file), ex.Message);
                 fileSkipped++;
             }
             finally{currentFile++;}
         }
         _LogProgress(currentFile, fileCount, fileSkipped);
+    }
+
+    private static void _FormattedError(string reason, string? message)
+    {
+        Log.Error($"{reason}{(message is null ? "": ": ")}{message}");
     }
 
     private static void _LogProgress(int currentFile, int fileCount, int fileSkipped)
@@ -250,9 +263,7 @@ internal static class Executable
         {
             try
             {
-                var progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
-                Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
-                                $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
+                _LogProgress(currentFile, fileCount, fileSkipped);
                 var curProcFiles = unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray();
                 var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup, quick);
                 for (var i = 0; i < tagApplierStatuses.Length; i++)
@@ -278,37 +289,41 @@ internal static class Executable
             }
             catch (MultiFileException ex)
             {
-                Log.Error($"Failed to process file {ex.Filename}: {ex.InnerException.Message}");
-                Log.Debug(ex.InnerException, "");
+                _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, ex.Filename), ex.InnerException.Message);
+                _DebugLogError(ex);
                 unprocessedFiles.Remove(ex.Filename);
                 fileStatuses.Add(ex.Filename, TagApplierStatus.INVALID_FILE);
             }
             catch (AggregateException ex)
             {
-                var msg = "Unhandled error";
+                var msg = UNHANDLED_ERROR;
                 if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
                 {
-                    msg = "Invalid endpoint";
+                    msg = INVALID_ENDPOINT;
                 }
                 else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
                 {
-                    msg = "Server failed to respond";
+                    msg = SERVER_RESPOND_FAIL;
                 }
 
-                Log.Error($"{msg}: {ex.InnerException?.Message}");
-                Log.Debug(ex, "");
+                _FormattedError(msg, ex.InnerException?.Message);
+                _DebugLogError(ex);
                 return null;
             }
             catch (Exception ex)
             {
                 Log.Error($"Unhandled error: {ex}");
-                Log.Debug(ex, "");
+                _DebugLogError(ex);
                 return null;
             }
         }
-        Log.Information($"100% {string.Concat(Enumerable.Repeat('█', 20))}" +
-                        $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
+        _LogProgress(currentFile, fileCount, fileSkipped);
         return fileStatuses;
+    }
+
+    private static void _DebugLogError(Exception ex)
+    {
+        Log.Debug(ex.InnerException, "");
     }
 
     private static string GetClearExtension(string filename)
