@@ -232,7 +232,7 @@ internal static class Executable
             catch (MultiFileException ex)
             {
                 _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, ex.Filename), ex.InnerException.Message);
-                _DebugLogError(ex);
+                _DebugLogError(ex.InnerException);
                 unprocessedFiles.Remove(ex.Filename);
                 fileStatuses.Add(ex.Filename, TagApplierStatus.INVALID_FILE);
             }
@@ -249,7 +249,7 @@ internal static class Executable
                 }
 
                 _FormattedError(msg, ex.InnerException?.Message);
-                _DebugLogError(ex);
+                _DebugLogError(ex.InnerException);
                 return null;
             }
             catch (Exception ex)
@@ -429,7 +429,7 @@ internal static class Executable
     
     private static void _DebugLogError(Exception ex)
     {
-        Log.Debug(ex.InnerException, "");
+        Log.Debug(ex, "");
     }
 
     private static string _GetClearExtension(string filename)
