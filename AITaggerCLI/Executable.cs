@@ -266,6 +266,51 @@ internal static class Executable
 
     private static TagApplierStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null, bool quick = true)
     {
+        var apiResponse = GetDescriptionResults(filenames, endpointUrl);
+
+        List<TagApplierStatus> statusList = new(filenames.Length);
+        foreach (var filename in filenames)
+        {
+            TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
+            try
+            {
+#if DEBUG
+                Log.Debug("All properties: ");
+                _DrawProperties(XmpManager.LoadFile(filename));
+#endif
+                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
+                if (fileResult == null)
+                {
+                    statusList.Add(TagApplierStatus.SERVER_RESPONSE_FILE_NOT_FOUND);
+                    continue;
+                }
+#if DEBUG
+IXmpMeta xmpMeta = 
+#endif
+                (quick
+                    ? TagApplier.QuickApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data,
+                        out tagApplierStatus)
+                    : TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data))
+#if DEBUG
+    ; xmpMeta
+#endif
+                    .SaveFile(filename.ToXmpFileName(), backupPath);
+#if DEBUG
+                Log.Debug("All properties after update: ");
+                _DrawProperties(xmpMeta);
+#endif
+                statusList.Add(tagApplierStatus);
+            }
+            catch (XmpException e)
+            {
+                throw new MultiFileException(filename, e);
+            }
+        }
+        return statusList.ToArray();
+    }
+
+    private static APICaller.MultiFileResponse GetDescriptionResults(string[] filenames, string endpointUrl)
+    {
         List<FileStream> fileStreams = new();
         foreach (var filename in filenames)
         {
@@ -278,46 +323,9 @@ internal static class Executable
         //Close files after processing every file
         fileStreams.ForEach(x => x.Close());
         fileStreams.ForEach(x => x.Dispose());
-        fileStreams.Clear();
-        
-        List<TagApplierStatus> statusList = new(filenames.Length);
-        foreach (var filename in filenames)
-        {
-            IXmpMeta xmpMeta;
-            TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
-            try
-            {
-#if DEBUG
-                xmpMeta = XmpManager.LoadFile(filename);
-                Log.Debug("All properties: ");
-                _DrawProperties(xmpMeta);
-#endif
-                var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
-                if (fileResult == null)
-                {
-                    statusList.Add(TagApplierStatus.SERVER_RESPONSE_FILE_NOT_FOUND);
-                    continue;
-                }
-                xmpMeta = quick
-                    ? TagApplier.QuickApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data,
-                        out tagApplierStatus)
-                    : TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data);
-#if DEBUG
-                Log.Debug("All properties after update: ");
-                _DrawProperties(xmpMeta);
-#endif
-                xmpMeta.SaveFile(filename.ToXmpFileName(), backupPath);
-                statusList.Add(tagApplierStatus);
-            }
-            catch (XmpException e)
-            {
-                throw new MultiFileException(filename, e);
-            }
-        }
-        return statusList.ToArray();
+        return apiResponse;
     }
-
-#if DEBUG
+    
     /// <summary>
     /// Shows properties from xmpMeta
     /// </summary>
@@ -329,8 +337,7 @@ internal static class Executable
             Log.Debug($"Path={property.Path} Namespace={property.Namespace} Value={property.Value}");
         Log.Debug("============================");
     }
-#endif
-    
+
     private static void _DebugLogError(Exception ex)
     {
         Log.Debug(ex, "");
