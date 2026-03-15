@@ -155,6 +155,7 @@ internal static class Executable
             {
                 IXmpMeta xmpMeta = XmpManager.LoadFile(file);
                 xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile);
+                Log.Information($"File {file} cleared.");
             }
             catch (XmpException ex)
             {
