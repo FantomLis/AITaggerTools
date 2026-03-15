@@ -35,15 +35,15 @@ internal static class Executable
             
             string[] paths = parseResult.GetValue(inputPathsOption)!;
             string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
-            
+
             List<string> fileList = _GetAllFiles(paths);
-            _ExcludeTextFiles(fileList);
             
             if (clearTag != null)
             {
                 _StartAsCleaner(fileList, clearTag, pathToBackup);
                 return;
             }
+            _ExcludeTextFiles(fileList);
             
             string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileSavePathOption);
             bool quick = parseResult.GetValue<bool>(quickOption);
@@ -143,9 +143,9 @@ internal static class Executable
     private static void _StartAsCleaner(List<string> files, string clearTag, string? backupFile)
     {
         //TODO: Add progress logging
-        //TODO: Make XmpManager load passed filename and not convert filename to .xmp
         foreach (var file in files)
         {
+            if (!file.IsXmpFile()) continue;
             IXmpMeta xmpMeta = XmpManager.LoadFile(file);
             xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile);
         }
@@ -323,14 +323,14 @@ internal static class Executable
                     continue;
                 }
                 xmpMeta = quick
-                    ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data,
+                    ? TagApplier.QuickApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data,
                         out tagApplierStatus)
-                    : TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, fileResult.Data);
+                    : TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data);
 #if DEBUG
                 Log.Debug("All properties after update: ");
                 _DrawProperties(xmpMeta);
 #endif
-                xmpMeta.SaveFile(filename, backupPath);
+                xmpMeta.SaveFile(filename.ToXmpFileName(), backupPath);
                 statusList.Add(tagApplierStatus);
             }
             catch (XmpException e)
@@ -428,13 +428,13 @@ internal static class Executable
         xmpMeta = XmpManager.LoadFile(filename);
         _DrawProperties(xmpMeta, "All properties: ");
 #endif
-        xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data, out tagApplierStatus) :
-            TagApplier.ApplyTagsToFile(filename, apiResponse.EndpointId, apiResponse.Data);
+        xmpMeta = quick ? TagApplier.QuickApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, apiResponse.Data, out tagApplierStatus) :
+            TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, apiResponse.Data);
             
 #if DEBUG
         _DrawProperties(xmpMeta, "All properties after update: ");
 #endif
-        xmpMeta.SaveFile(saveFileName ?? filename, backupPath);
+        xmpMeta.SaveFile((saveFileName ?? filename).ToXmpFileName(), backupPath);
         return tagApplierStatus;
     }
 

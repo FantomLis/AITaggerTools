@@ -15,10 +15,9 @@ public static class XmpManager
         XmpMetaFactory.SchemaRegistry.RegisterNamespace(DigikamNs, "digiKam");
     }
     
-    public static IXmpMeta LoadFile(string name)
+    public static IXmpMeta LoadFile(string file)
     {
         IXmpMeta xmp = XmpMetaFactory.Create();
-        string file = ToXmpFileName(name);
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, loading.");
@@ -26,7 +25,7 @@ public static class XmpManager
                 xmp = XmpMetaFactory.Parse(stream);
             
         }
-        Log.Debug($"Done LoadFile for {name}");
+        Log.Debug($"Done LoadFile for {file}");
         return xmp;
     }
     
@@ -106,9 +105,8 @@ public static class XmpManager
     [Pure]
     public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/')+1);
 
-    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, string? backupPath = null)
+    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string file, string? backupPath = null)
     {
-        string file = ToXmpFileName(name);
         var isBackupEnabled = !string.IsNullOrEmpty(backupPath);
         if (!isBackupEnabled) backupPath = Path.GetDirectoryName(file)!;
         if (File.Exists(file))
@@ -116,8 +114,8 @@ public static class XmpManager
             Log.Debug($"Found file {file}, cleaning up.");
             if (isBackupEnabled)
             {
-                Directory.CreateDirectory(backupPath);
-                var destFileName = ToXmpFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
+                Directory.CreateDirectory(backupPath!);
+                var destFileName = ToXmpFileName(Path.Combine(backupPath!, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
                 File.Copy(file, destFileName);
                 Log.Debug($"Created file {destFileName} as backup.");
             }
@@ -129,15 +127,18 @@ public static class XmpManager
             // For some reason, padding in this lib works weird when padding is zero 
             Padding = 1
         });
-        Log.Debug($"Done SaveFile for {name}");
+        Log.Debug($"Done SaveFile for {file}");
         return xmpMeta;
     }
 
     [Pure]
-    public static string ToXmpFileName(this string name)
+    public static string ToXmpFileName(this string filename)
     {
-        return $"{name.Replace(".xmp", "")}.xmp";
+        return $"{filename.Replace(".xmp", "")}.xmp";
     }
+
+    [Pure]
+    public static bool IsXmpFile(this string filename) => Path.GetExtension(filename) == ".xmp";
     
     [Obsolete("IdStructure is part of ApplyDataInDescription and is deprecated.")]
     const string IdStructure = "\n{0}: ";
