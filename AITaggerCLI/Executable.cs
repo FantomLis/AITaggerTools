@@ -294,7 +294,7 @@ internal static class Executable
                 var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
                 if (fileResult == null)
                 {
-                    statusList.Add(TagApplierStatus.BAD_RESPONSE);
+                    statusList.Add(TagApplierStatus.SERVER_RESPONSE_FILE_NOT_FOUND);
                     continue;
                 }
                 xmpMeta = quick
