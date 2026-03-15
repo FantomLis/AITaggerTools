@@ -146,13 +146,37 @@ internal static class Executable
 
     private static void _StartAsCleaner(List<string> files, string clearTag, string? backupFile)
     {
-        //TODO: Add progress logging
+        List<string> xmpFiles = new(files.Count);
         foreach (var file in files)
         {
             if (!file.IsXmpFile()) continue;
-            IXmpMeta xmpMeta = XmpManager.LoadFile(file);
-            xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile);
+            xmpFiles.Add(file);
         }
+
+        int currentFile = 0, fileCount = xmpFiles.Count, fileSkipped = 0;
+        foreach (var file in xmpFiles)      
+        {
+            _LogProgress(currentFile, fileCount, fileSkipped);
+            try
+            {
+                IXmpMeta xmpMeta = XmpManager.LoadFile(file);
+                xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile);
+            }
+            catch (XmpException ex)
+            {
+                Log.Error($"Failed to process file: {ex.Message}");
+                fileSkipped++;
+            }
+            finally{currentFile++;}
+        }
+        _LogProgress(currentFile, fileCount, fileSkipped);
+    }
+
+    private static void _LogProgress(int currentFile, int fileCount, int fileSkipped)
+    {
+        int progress = (int)Math.Floor(((float)currentFile / fileCount) * 100);
+        Log.Information($"{progress}% {string.Concat(Enumerable.Repeat('█', progress/5).Concat(Enumerable.Repeat('_', 20-(progress/5))))}" +
+                        $"         {currentFile}/{fileCount} (skipped {fileSkipped} files)");
     }
 
     private static void _StartAsWebUI()
