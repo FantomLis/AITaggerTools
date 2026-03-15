@@ -20,6 +20,8 @@ internal class Program
     public static int MaxFileStoreTimeInMin = 60 * 4;
 
     private static Dictionary<string, DateTime> FileRemovingStruct = new ();
+    
+    private static string _TempFolder => Path.Combine(Directory.GetCurrentDirectory(), "temp");
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -90,7 +92,7 @@ internal class Program
         List<string> filepaths = new();
         foreach (var filepath in input)
         {
-            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "temp", filepath))) continue;
+            if (!File.Exists(Path.Combine(_TempFolder, filepath))) continue;
             // Prepare your files
             filepaths.Add(filepath);
         }
@@ -202,8 +204,8 @@ internal class Program
 
     private static async Task<string> WriteFileToDrive(IFormFile formFile, byte[] file)
     {
-        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "temp", Path.GetRandomFileName() + "_" + formFile.FileName);
-        Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "temp"));
+        string filePath = Path.Combine(_TempFolder, Path.GetRandomFileName() + "_" + formFile.FileName);
+        Directory.CreateDirectory(_TempFolder);
         using (var f = File.Create(filePath)) await f.WriteAsync(file);
         return filePath;
     }
