@@ -5,6 +5,7 @@ using Flurl;
 
 namespace AITaggerSDK;
 
+// ReSharper disable once InconsistentNaming
 public static class APICaller
 {
     public static async Task<MultiFileResponse> RequestFilesDescription(string endpointUrl, params FileStream[] files)
