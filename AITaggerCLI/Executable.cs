@@ -206,10 +206,13 @@ internal static class Executable
                 unprocessedFiles.Add(filename);
                 continue;
             }
-            if (!XmpManager.LoadFile(filename.ToXmpFileName()).IsTagsAlreadyExists(APICaller.GetEndpointInfo(endpointUrl).Result.EndpointId))
+
+            if (!XmpManager.LoadFile(filename.ToXmpFileName())
+                    .IsTagsAlreadyExists(APICaller.GetEndpointInfo(endpointUrl).Result.EndpointId))
             {
                 unprocessedFiles.Add(filename);
             }
+            else fileStatuses.Add(filename, TagApplierStatus.SKIPPED);
         }
         int fileCount = filenames.Length, fileSkipped = fileCount - unprocessedFiles.Count, currentFile = fileSkipped;
         while (unprocessedFiles.Count > 0)
@@ -218,7 +221,7 @@ internal static class Executable
             {
                 UITools._LogProgress(currentFile, fileCount, fileSkipped);
                 var curProcFiles = unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray();
-                var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup, quick);
+                var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup);
                 for (var i = 0; i < tagApplierStatuses.Length; i++)
                 {
                     var tagApplierStatus = tagApplierStatuses[i];
@@ -274,14 +277,13 @@ internal static class Executable
         return fileStatuses;
     }
 
-    private static TagApplierStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null, bool quick = true)
+    private static TagApplierStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
     {
         var apiResponse = GetDescriptionResults(filenames, endpointUrl);
 
         List<TagApplierStatus> statusList = new(filenames.Length);
         foreach (var filename in filenames)
         {
-            TagApplierStatus tagApplierStatus = TagApplierStatus.OK;
             try
             {
 #if DEBUG
@@ -297,10 +299,7 @@ internal static class Executable
 #if DEBUG
 IXmpMeta xmpMeta = 
 #endif
-                (quick
-                    ? TagApplier.QuickApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data,
-                        out tagApplierStatus)
-                    : TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data))
+                TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data)
 #if DEBUG
     ; xmpMeta
 #endif
@@ -309,7 +308,7 @@ IXmpMeta xmpMeta =
                 Log.Debug("All properties after update: ");
                 _DrawProperties(xmpMeta);
 #endif
-                statusList.Add(tagApplierStatus);
+                statusList.Add(TagApplierStatus.OK);
             }
             catch (XmpException e)
             {
