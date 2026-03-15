@@ -90,28 +90,28 @@ internal class Program
         List<string>? input = (await r.Request.ReadFromJsonAsync<List<string>>())?.ToList();
         if (input == null) return;
         List<string> filepaths = new();
-        foreach (var filepath in input)
+        foreach (var filePath in input)
         {
-            if (!File.Exists(Path.Combine(_TempFolder, filepath))) continue;
+            if (!File.Exists(Path.Combine(_TempFolder, filePath))) continue;
             // Prepare your files
-            filepaths.Add(filepath);
+            filepaths.Add(filePath);
         }
 
         var output = new List<SingleFileResponse>();
-        foreach (var filepath in filepaths)
+        foreach (var filePath in filepaths)
         {
             var result = "";
             try
             {
                 // ... connect to AI model and get results
-                result = RunModel(filepath);
+                result = RunModel(filePath);
                 
                 // ... parse results and put into results variable
                 result = ParseResults(result);
-                output.Add(new SingleFileResponse(Path.GetFileName(filepath), result, ApiId));
+                output.Add(new SingleFileResponse(Path.GetFileName(filePath), result, ApiId));
             
                 // Deleting temp file
-                File.Delete(filepath);
+                File.Delete(filePath);
             } // when failed, skip file
             catch (Exception ex)
             {
