@@ -7,7 +7,7 @@ public static class TagApplier
     public static IXmpMeta QuickApplyTagsToFile(string name, string endpointId, string tagData, out TagApplierStatus status)
     {
         IXmpMeta xmpMeta = XmpManager.LoadFile(name);
-        if (IsTagsAlreadyExists(endpointId, xmpMeta))
+        if (xmpMeta.IsTagsAlreadyExists(endpointId))
         {
             status = TagApplierStatus.SKIPPED;
             return xmpMeta;
@@ -17,7 +17,7 @@ public static class TagApplier
         return ApplyTagsToXmpMeta(xmpMeta,endpointId, tagData);
     }
 
-    public static bool IsTagsAlreadyExists(string endpointId, IXmpMeta xmpMeta)
+    public static bool IsTagsAlreadyExists(this IXmpMeta xmpMeta, string endpointId)
     {
         return xmpMeta.GetAllTaggerTags(endpointId).Length > 0;
     }
