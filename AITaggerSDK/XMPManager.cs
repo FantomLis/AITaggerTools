@@ -106,14 +106,15 @@ public static class XmpManager
     [Pure]
     public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/')+1);
 
-    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool backupFile = true, string backupPath = "")
+    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, string? backupPath = null)
     {
         string file = ToXmpFileName(name);
-        if (string.IsNullOrWhiteSpace(backupPath)) backupPath = Path.GetDirectoryName(file)!;
+        var isBackupEnabled = !string.IsNullOrEmpty(backupPath);
+        if (!isBackupEnabled) backupPath = Path.GetDirectoryName(file)!;
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, cleaning up.");
-            if (backupFile)
+            if (isBackupEnabled)
             {
                 Directory.CreateDirectory(backupPath);
                 var destFileName = ToXmpFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));

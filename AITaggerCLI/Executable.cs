@@ -147,7 +147,7 @@ internal static class Executable
         foreach (var file in files)
         {
             IXmpMeta xmpMeta = XmpManager.LoadFile(file);
-            xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile != null, backupFile);
+            xmpMeta.ClearTags(clearTag).SaveFile(file, backupFile);
         }
     }
 
@@ -330,7 +330,7 @@ internal static class Executable
                 Log.Debug("All properties after update: ");
                 _DrawProperties(xmpMeta);
 #endif
-                xmpMeta.SaveFile(filename, backupPath != null, backupPath ?? "");
+                xmpMeta.SaveFile(filename, backupPath);
                 statusList.Add(tagApplierStatus);
             }
             catch (XmpException e)
@@ -434,7 +434,7 @@ internal static class Executable
 #if DEBUG
         _DrawProperties(xmpMeta, "All properties after update: ");
 #endif
-        xmpMeta.SaveFile(saveFileName ?? filename, (backupPath != null), backupPath ?? "");
+        xmpMeta.SaveFile(saveFileName ?? filename, backupPath);
         return tagApplierStatus;
     }
 
