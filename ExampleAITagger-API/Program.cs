@@ -37,6 +37,8 @@ internal class Program
             .WithName("BulkFileUpload");
         app.MapGet("/desc/fetch", Fetch)
             .WithName("BulkFileDescription");
+        app.MapGet("/info", () => new EndpointInfo(ApiId))
+            .WithName("ServerInfo");
         Task.Run(() =>
         {
             while (!app.Lifetime.ApplicationStopping.IsCancellationRequested)
@@ -190,5 +192,15 @@ internal class Program
     {
         public string EndpointId { get; set; }
         public SingleFile[] Files { get; set; }
+    }
+    
+    public class EndpointInfo
+    {
+        public EndpointInfo(string endpointId)
+        {
+            EndpointId = endpointId;
+        }
+
+        public string EndpointId { get; set; }
     }
 }

@@ -190,7 +190,6 @@ internal static class Executable
                 case "mp4":
                 case "mkv":
                 case "webm":
-                    unprocessedFiles.Add(filename);
                     break;
                 case "xmp":
                 case "txt":
@@ -200,6 +199,16 @@ internal static class Executable
                     Log.Error($"File {filename} is unsupported.");
                     fileStatuses.Add(filename, TagApplierStatus.INVALID_TYPE);
                     continue;
+            }
+
+            if (!quick)
+            {
+                unprocessedFiles.Add(filename);
+                continue;
+            }
+            if (!XmpManager.LoadFile(filename.ToXmpFileName()).IsTagsAlreadyExists(APICaller.GetEndpointInfo(endpointUrl).Result.EndpointId))
+            {
+                unprocessedFiles.Add(filename);
             }
         }
         int fileCount = filenames.Length, fileSkipped = fileCount - unprocessedFiles.Count, currentFile = fileSkipped;
