@@ -172,6 +172,7 @@ internal static class Executable
         throw new NotImplementedException("Currently WebUI is not implemented.");
     }
     
+    // I don't know what to do with this huge method 😭
     private static Dictionary<string,TagApplierStatus>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
         Dictionary<string, TagApplierStatus> fileStatuses = new Dictionary<string, TagApplierStatus>(filenames.Length);
