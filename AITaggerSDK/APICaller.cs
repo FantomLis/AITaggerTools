@@ -14,13 +14,19 @@ public static class APICaller
     {
         HttpClient client = new HttpClient();
         Dictionary<string, string> fileMap = new();
+        HttpResponseMessage response;
         foreach (var file in files)
         {
-            fileMap.Add(await (await _SendFile(Url.Combine(endpointUrl, "desc", "upload"), client,
-                file.File, Path.GetFileName(file.Filename))).Content.ReadAsStringAsync(),Path.GetFileName(file.Filename));
+            response = await _SendFile(Url.Combine(endpointUrl, "desc", "upload"), client,
+                file.File, Path.GetFileName(file.Filename));
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
+            }
+            fileMap.Add(await response.Content.ReadAsStringAsync(),Path.GetFileName(file.Filename));
         }
         
-        var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "desc", "fetch"))
+        response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "desc", "fetch"))
         {
             Content = new StringContent(JsonSerializer.Serialize(fileMap.Keys.ToList()), Encoding.UTF8, "application/json"),
         });
