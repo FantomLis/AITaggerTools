@@ -90,7 +90,7 @@ internal class Program
         List<string> filepaths = new();
         foreach (var filepath in input)
         {
-            if (!File.Exists(filepath)) continue;
+            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "temp", filepath))) continue;
             // Prepare your files
             filepaths.Add(filepath);
         }
