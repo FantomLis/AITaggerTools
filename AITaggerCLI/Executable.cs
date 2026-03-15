@@ -320,7 +320,7 @@ internal static class Executable
     [Obsolete("Use _UseFiles instead. This method uses old /desc path and will not work with new version.", true)]
     private static TagApplierStatus UseFile(string filename, string endpointUrl, string? backup = null, bool quick = true, string? saveFileName = null)
     {
-        switch (Path.GetExtension(filename).Replace(".", ""))
+        switch (ExtensionTools.GetClearExtension(Path.GetExtension(filename)))
         {
             case "png":
             case "jpg":
@@ -452,11 +452,10 @@ internal static class Executable
         List<string> excludeFile = new(files.Count);
         foreach (var file in files)
         {
-            var extension = Path.GetExtension(file);
-            switch (extension)
+            switch (ExtensionTools.GetClearExtension(Path.GetExtension(file)))
             {
-                case ".xmp":
-                case ".txt":
+                case "xmp":
+                case "txt":
                     excludeFile.Add(file);
                     break;
             }
