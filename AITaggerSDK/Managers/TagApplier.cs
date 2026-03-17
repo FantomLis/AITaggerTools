@@ -4,16 +4,16 @@ namespace AITaggerSDK.Managers;
 
 public static class TagApplier
 {
-    public static IXmpMeta QuickApplyTagsToFile(string name, string endpointId, string tagData, out TagApplierStatus status)
+    public static IXmpMeta QuickApplyTagsToFile(string name, string endpointId, string tagData, out TaggerFileStatus status)
     {
         IXmpMeta xmpMeta = XmpManager.LoadFile(name);
         if (xmpMeta.IsTagsAlreadyExists(endpointId))
         {
-            status = TagApplierStatus.SKIPPED;
+            status = TaggerFileStatus.SKIPPED;
             return xmpMeta;
         }
 
-        status = TagApplierStatus.OK;
+        status = TaggerFileStatus.OK;
         return ApplyTagsToXmpMeta(xmpMeta,endpointId, tagData);
     }
 
