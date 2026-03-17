@@ -28,7 +28,7 @@ internal static class Executable
         
         _SetupLogger();
         var cmd = _CreateTaggerCommand(out var inputPathsOption, out var endpointUrlOption, out var xmpFileSavePathOption, 
-            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption);
+            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption, out var ignoreInvalidExtensionsOption);
         string? endpointUrl = null, clearTag = null;
         
         #endregion
@@ -49,6 +49,7 @@ internal static class Executable
             
             string[] paths = parseResult.GetValue(inputPathsOption)!;
             string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
+            bool ignoreExt = parseResult.GetValue(ignoreInvalidExtensionsOption);
 
             List<string> fileList = _GetAllFiles(paths);
             
@@ -62,7 +63,7 @@ internal static class Executable
             string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileSavePathOption);
             bool quick = parseResult.GetValue<bool>(quickOption);
             
-            _StartAsTagger(fileList, xmpFileLocation, endpointUrl, pathToBackup, quick);
+            _StartAsTagger(fileList, xmpFileLocation, endpointUrl, pathToBackup, quick, ignoreExt);
         });
 
         return cmd.Parse(args).Invoke();
@@ -70,7 +71,7 @@ internal static class Executable
     
     private static RootCommand _CreateTaggerCommand(out Option<string[]> inputPathsOption, out Option<string?> endpointUrlOption,
         out Option<string?> xmpFileSavePathOption, out Option<string?> backupPathOption, out Option<bool> quickOption, out Option<bool> webuiOption,
-        out Option<string?> clearTagsOption)
+        out Option<string?> clearTagsOption, out Option<bool> ignoreInvalidExtensionsOption)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -119,6 +120,13 @@ internal static class Executable
             Required = false,
             DefaultValueFactory = _ => null
         };
+        ignoreInvalidExtensionsOption = new("--ignore-endpoint-extensions", "-iee")
+        {
+            Description =
+                "Ignores file extension from endpoint and forces to send all files. Be aware that this will not process your file if it isn't supported.",
+            Required = false,
+            DefaultValueFactory = _ => false
+        };
 
         rootCommand.Options.Add(inputPathsOption);
         rootCommand.Options.Add(endpointUrlOption);
@@ -127,11 +135,12 @@ internal static class Executable
         rootCommand.Options.Add(quickOption);
         rootCommand.Options.Add(webuiOption);
         rootCommand.Options.Add(clearTagsOption);
+        rootCommand.Options.Add(ignoreInvalidExtensionsOption);
         return rootCommand;
     }
 
     private static void _StartAsTagger(List<string> fileList, string? xmpFileLocation, string? endpointUrl, string? pathToBackup,
-        bool quick)
+        bool quick, bool ignoreExt)
     {
         if (fileList.Count > 1 && xmpFileLocation is not null)
         {
@@ -139,7 +148,7 @@ internal static class Executable
         }
         
         var fileStatuses = _UseFiles(fileList.ToArray(), endpointUrl!,
-            pathToBackup, quick);
+            pathToBackup, quick, ignoreExt);
         if (fileStatuses is null)  return;
         _LogFailedFiles(fileStatuses);
     }
@@ -177,13 +186,13 @@ internal static class Executable
     {
         throw new NotImplementedException("Currently WebUI is not implemented.");
     }
-    private static List<FileProcessingResult>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
+    private static List<FileProcessingResult>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true, bool ignoreExt = false)
     {
         List<FileProcessingResult> fileStatuses = new (filenames.Length);
         List<string> unprocessedFiles;
         try
         {
-            unprocessedFiles = _CreateFileList(filenames, endpointUrl, quick, fileStatuses);
+            unprocessedFiles = _CreateFileList(filenames, endpointUrl, quick,ignoreExt, fileStatuses);
         }
         catch (AggregateException ex)
         {
@@ -254,31 +263,33 @@ internal static class Executable
         }
     }
 
-    private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, List<FileProcessingResult> fileStatuses)
+    private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, bool ignoreInvalidExtensions, List<FileProcessingResult> fileStatuses)
     {
         List<string> unprocessedFiles = new(filenames.Length);
         var endpointInfo = TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result;
+        if (endpointInfo is null) throw new AggregateException(new HttpRequestException("Server info is null."));
         foreach (var filename in filenames)
         {
-            switch (ExtensionTools.GetClearExtension(filename))
+            var ext = ExtensionTools.GetClearExtension(filename);
+            switch (ext)
             {
-                case "png":
-                case "jpg":
-                case "jpeg":
-                case "webp":
-                case "gif":
-                case "avi":
-                case "mp4":
-                case "mkv":
-                case "webm":
-                    break;
                 case "xmp":
                 case "txt":
                     fileStatuses.Add(FileProcessingResult.CreateIgnored(filename));
                     continue;
                 default:
-                    fileStatuses.Add(FileProcessingResult.CreateErrorResult(filename, TaggerFileStatus.INVALID_TYPE, $"File {filename} is unsupported."));
-                    continue;
+                    if (!endpointInfo.IsFiletypeSupported(ext))
+                    {
+                        if (!ignoreInvalidExtensions)
+                        {
+                            fileStatuses.Add(FileProcessingResult.CreateErrorResult(filename,
+                                TaggerFileStatus.INVALID_TYPE,
+                                $"File {filename} is unsupported."));
+                            continue;
+                        }
+                        Log.Warning($"File {filename} is unsupported, but --ignore-endpoint-extensions was used.");
+                    }
+                    break;
             }
 
             if (!quick)
