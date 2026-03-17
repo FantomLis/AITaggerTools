@@ -177,8 +177,6 @@ internal static class Executable
     {
         throw new NotImplementedException("Currently WebUI is not implemented.");
     }
-    
-    // I don't know what to do with this huge method 😭
     private static List<FileProcessingResult>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
         List<FileProcessingResult> fileStatuses = new (filenames.Length);
@@ -198,32 +196,15 @@ internal static class Executable
             try
             {
                 UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
-                var tagApplierStatuses = _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray(), endpointUrl, backup);
-                foreach (var tagApplierStatus in tagApplierStatuses)
+                var fileProcessingResults = 
+                    _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray(), endpointUrl, backup);
+                foreach (var result in fileProcessingResults)
                 {
-                    if (tagApplierStatus.ProcessingStatus.IsFine())
-                    {
-                        Log.Information($"File {tagApplierStatus.Filename} done.");
-                    }
-                    else if (tagApplierStatus.ProcessingStatus == TaggerFileStatus.SKIPPED)
-                    {
-                        Log.Information($"File {tagApplierStatus.Filename} skipped.");
-                    }
-                    else
-                    {
-                        Log.Information($"File {tagApplierStatus.Filename} failed: {tagApplierStatus.Error!}");
-                    }
-                    fileStatuses.Add(tagApplierStatus);
-                    unprocessedFiles.Remove(tagApplierStatus.Filename);
+                    _LogFileProcessingResult(result);
+                    fileStatuses.Add(result);
+                    unprocessedFiles.Remove(result.Filename);
                     currentFile++;
                 }
-            }
-            catch (MultiFileException ex)
-            {
-                _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, ex.Filename), ex.InnerException.Message);
-                _DebugLogError(ex.InnerException);
-                unprocessedFiles.Remove(ex.Filename);
-                fileStatuses.Add(FileProcessingResult.CreateErrorResult(ex.Filename, TaggerFileStatus.INVALID_FILE, ex.InnerException.Message));
             }
             catch (AggregateException ex)
             {
@@ -255,6 +236,22 @@ internal static class Executable
         _FormattedError(msg, ex.InnerException?.Message);
         _DebugLogError(ex.InnerException);
         return null;
+    }
+    
+    private static void _LogFileProcessingResult(FileProcessingResult tagApplierStatus)
+    {
+        if (tagApplierStatus.ProcessingStatus.IsFine())
+        {
+            Log.Information($"File {tagApplierStatus.Filename} done.");
+        }
+        else if (tagApplierStatus.ProcessingStatus == TaggerFileStatus.SKIPPED)
+        {
+            Log.Information($"File {tagApplierStatus.Filename} skipped.");
+        }
+        else
+        {
+            Log.Information($"File {tagApplierStatus.Filename} failed: {tagApplierStatus.Error!}");
+        }
     }
 
     private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, List<FileProcessingResult> fileStatuses)
