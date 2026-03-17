@@ -1,6 +1,6 @@
 ﻿namespace AITaggerSDK;
 
-public enum TagApplierStatus : byte     
+public enum TaggerFileStatus : byte     
 {
     OK = 0,
     SKIPPED = 1,

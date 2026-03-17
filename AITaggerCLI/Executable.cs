@@ -178,9 +178,9 @@ internal static class Executable
     }
     
     // I don't know what to do with this huge method 😭
-    private static Dictionary<string,TagApplierStatus>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
+    private static Dictionary<string,TaggerFileStatus>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
-        Dictionary<string, TagApplierStatus> fileStatuses = new Dictionary<string, TagApplierStatus>(filenames.Length);
+        Dictionary<string, TaggerFileStatus> fileStatuses = new Dictionary<string, TaggerFileStatus>(filenames.Length);
         List<string> unprocessedFiles = new(filenames.Length);
         foreach (var filename in filenames)
         {
@@ -198,11 +198,11 @@ internal static class Executable
                     break;
                 case "xmp":
                 case "txt":
-                    fileStatuses.Add(filename, TagApplierStatus.IGNORE);
+                    fileStatuses.Add(filename, TaggerFileStatus.IGNORE);
                     continue;
                 default:
                     Log.Error($"File {filename} is unsupported.");
-                    fileStatuses.Add(filename, TagApplierStatus.INVALID_TYPE);
+                    fileStatuses.Add(filename, TaggerFileStatus.INVALID_TYPE);
                     continue;
             }
 
@@ -217,7 +217,7 @@ internal static class Executable
             {
                 unprocessedFiles.Add(filename);
             }
-            else fileStatuses.Add(filename, TagApplierStatus.SKIPPED);
+            else fileStatuses.Add(filename, TaggerFileStatus.SKIPPED);
         }
         int fileCount = filenames.Length, fileSkipped = fileCount - unprocessedFiles.Count, currentFile = fileSkipped;
         while (unprocessedFiles.Count > 0)
@@ -230,12 +230,12 @@ internal static class Executable
                 for (var i = 0; i < tagApplierStatuses.Length; i++)
                 {
                     var tagApplierStatus = tagApplierStatuses[i];
-                    if (tagApplierStatus == TagApplierStatus.SKIPPED)
+                    if (tagApplierStatus == TaggerFileStatus.SKIPPED)
                     {
                         fileSkipped++;
                         Log.Information($"File {curProcFiles[i]} skipped.");
                     }
-                    else if (tagApplierStatus == TagApplierStatus.OK)
+                    else if (tagApplierStatus == TaggerFileStatus.OK)
                     {
                         Log.Information($"File {curProcFiles[i]} done.");
                     }
@@ -253,7 +253,7 @@ internal static class Executable
                 _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, ex.Filename), ex.InnerException.Message);
                 _DebugLogError(ex.InnerException);
                 unprocessedFiles.Remove(ex.Filename);
-                fileStatuses.Add(ex.Filename, TagApplierStatus.INVALID_FILE);
+                fileStatuses.Add(ex.Filename, TaggerFileStatus.INVALID_FILE);
             }
             catch (AggregateException ex)
             {
@@ -282,11 +282,11 @@ internal static class Executable
         return fileStatuses;
     }
 
-    private static TagApplierStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
+    private static TaggerFileStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
     {
         var apiResponse = GetDescriptionResults(filenames, endpointUrl);
 
-        List<TagApplierStatus> statusList = new(filenames.Length);
+        List<TaggerFileStatus> statusList = new(filenames.Length);
         foreach (var filename in filenames)
         {
             try
@@ -298,7 +298,7 @@ internal static class Executable
                 var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
                 if (fileResult == null)
                 {
-                    statusList.Add(TagApplierStatus.SERVER_RESPONSE_FILE_NOT_FOUND);
+                    statusList.Add(TaggerFileStatus.SERVER_RESPONSE_FILE_NOT_FOUND);
                     continue;
                 }
 #if DEBUG
@@ -313,7 +313,7 @@ IXmpMeta xmpMeta =
                 Log.Debug("All properties after update: ");
                 _DrawProperties(xmpMeta);
 #endif
-                statusList.Add(TagApplierStatus.OK);
+                statusList.Add(TaggerFileStatus.OK);
             }
             catch (XmpException e)
             {
@@ -388,12 +388,12 @@ IXmpMeta xmpMeta =
         excludeFile.ForEach(x => files.Remove(x));
     }
     
-    private static void _LogFailedFiles(Dictionary<string, TagApplierStatus> fileStatuses)
+    private static void _LogFailedFiles(Dictionary<string, TaggerFileStatus> fileStatuses)
     {
         bool isAnyFailed = false;
         foreach (var (key, value) in fileStatuses)
         {
-            if (value != TagApplierStatus.OK && value != TagApplierStatus.SKIPPED && value != TagApplierStatus.IGNORE)
+            if (value != TaggerFileStatus.OK && value != TaggerFileStatus.SKIPPED && value != TaggerFileStatus.IGNORE)
             {
                 if (!isAnyFailed) Log.Error("This files failed to process: ");
                 isAnyFailed = true;
