@@ -3,6 +3,7 @@ using AITaggerCLI.Exceptions;
 using AITaggerCLI.Tools;
 using AITaggerSDK;
 using AITaggerSDK.API.Responses;
+using AITaggerSDK.Containers;
 using AITaggerSDK.Managers;
 using AITaggerSDK.Tools;
 using Serilog;
@@ -178,73 +179,33 @@ internal static class Executable
     }
     
     // I don't know what to do with this huge method 😭
-    private static Dictionary<string,TaggerFileStatus>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
+    private static List<FileProcessingResult>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
-        Dictionary<string, TaggerFileStatus> fileStatuses = new Dictionary<string, TaggerFileStatus>(filenames.Length);
-        List<string> unprocessedFiles = new(filenames.Length);
-        foreach (var filename in filenames)
-        {
-            switch (ExtensionTools.GetClearExtension(filename))
-            {
-                case "png":
-                case "jpg":
-                case "jpeg":
-                case "webp":
-                case "gif":
-                case "avi":
-                case "mp4":
-                case "mkv":
-                case "webm":
-                    break;
-                case "xmp":
-                case "txt":
-                    fileStatuses.Add(filename, TaggerFileStatus.IGNORE);
-                    continue;
-                default:
-                    Log.Error($"File {filename} is unsupported.");
-                    fileStatuses.Add(filename, TaggerFileStatus.INVALID_TYPE);
-                    continue;
-            }
-
-            if (!quick)
-            {
-                unprocessedFiles.Add(filename);
-                continue;
-            }
-
-            if (!XmpManager.LoadFile(filename.ToXmpFileName())
-                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result?.EndpointId))
-            {
-                unprocessedFiles.Add(filename);
-            }
-            else fileStatuses.Add(filename, TaggerFileStatus.SKIPPED);
-        }
+        List<FileProcessingResult> fileStatuses = new (filenames.Length);
+        var unprocessedFiles = _CreateFileList(filenames, endpointUrl, quick, fileStatuses);
         int fileCount = filenames.Length, fileSkipped = fileCount - unprocessedFiles.Count, currentFile = fileSkipped;
         while (unprocessedFiles.Count > 0)
         {
             try
             {
                 UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
-                var curProcFiles = unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray();
-                var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup);
-                for (var i = 0; i < tagApplierStatuses.Length; i++)
+                var tagApplierStatuses = _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray(), endpointUrl, backup);
+                foreach (var tagApplierStatus in tagApplierStatuses)
                 {
-                    var tagApplierStatus = tagApplierStatuses[i];
-                    if (tagApplierStatus == TaggerFileStatus.SKIPPED)
+                    if (tagApplierStatus.ProcessingStatus.IsFine())
                     {
-                        fileSkipped++;
-                        Log.Information($"File {curProcFiles[i]} skipped.");
+                        Log.Information($"File {tagApplierStatus.Filename} done.");
                     }
-                    else if (tagApplierStatus == TaggerFileStatus.OK)
+                    else if (tagApplierStatus.ProcessingStatus == TaggerFileStatus.SKIPPED)
                     {
-                        Log.Information($"File {curProcFiles[i]} done.");
+                        Log.Information($"File {tagApplierStatus.Filename} skipped.");
                     }
                     else
                     {
-                        Log.Information($"File {curProcFiles[i]} failed.");
+                        Log.Information($"File {tagApplierStatus.Filename} failed: {tagApplierStatus.Error!}");
                     }
-                    fileStatuses.Add(curProcFiles[i], tagApplierStatus);
-                    unprocessedFiles.Remove(curProcFiles[i]);
+                    fileStatuses.Add(tagApplierStatus);
+                    unprocessedFiles.Remove(tagApplierStatus.Filename);
                     currentFile++;
                 }
             }
@@ -253,7 +214,7 @@ internal static class Executable
                 _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, ex.Filename), ex.InnerException.Message);
                 _DebugLogError(ex.InnerException);
                 unprocessedFiles.Remove(ex.Filename);
-                fileStatuses.Add(ex.Filename, TaggerFileStatus.INVALID_FILE);
+                fileStatuses.Add(FileProcessingResult.CreateErrorResult(ex.Filename, TaggerFileStatus.INVALID_FILE, ex.InnerException.Message));
             }
             catch (AggregateException ex)
             {
@@ -282,11 +243,54 @@ internal static class Executable
         return fileStatuses;
     }
 
-    private static TaggerFileStatus[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
+    private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, List<FileProcessingResult> fileStatuses)
+    {
+        List<string> unprocessedFiles = new(filenames.Length);
+        foreach (var filename in filenames)
+        {
+            switch (ExtensionTools.GetClearExtension(filename))
+            {
+                case "png":
+                case "jpg":
+                case "jpeg":
+                case "webp":
+                case "gif":
+                case "avi":
+                case "mp4":
+                case "mkv":
+                case "webm":
+                    break;
+                case "xmp":
+                case "txt":
+                    fileStatuses.Add(FileProcessingResult.CreateIgnored(filename));
+                    continue;
+                default:
+                    fileStatuses.Add(FileProcessingResult.CreateErrorResult(filename, TaggerFileStatus.INVALID_TYPE, $"File {filename} is unsupported."));
+                    continue;
+            }
+
+            if (!quick)
+            {
+                unprocessedFiles.Add(filename);
+                continue;
+            }
+
+            if (!XmpManager.LoadFile(filename.ToXmpFileName())
+                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result?.EndpointId))
+            {
+                unprocessedFiles.Add(filename);
+            }
+            else fileStatuses.Add(FileProcessingResult.CreateSkipped(filename));
+        }
+
+        return unprocessedFiles;
+    }
+
+    private static FileProcessingResult[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
     {
         var apiResponse = GetDescriptionResults(filenames, endpointUrl);
 
-        List<TaggerFileStatus> statusList = new(filenames.Length);
+        List<FileProcessingResult> statusList = new(filenames.Length);
         foreach (var filename in filenames)
         {
             try
@@ -298,13 +302,21 @@ internal static class Executable
                 var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
                 if (fileResult == null)
                 {
-                    statusList.Add(TaggerFileStatus.SERVER_RESPONSE_FILE_NOT_FOUND);
+                    statusList.Add(FileProcessingResult.CreateErrorResult(filename,
+                        TaggerFileStatus.SERVER_RESPONSE_FILE_NOT_FOUND, "File was not found in server response."));
+                    continue;
+                }
+
+                if (fileResult.IsError)
+                {
+                    statusList.Add(FileProcessingResult.CreateErrorResult(filename,
+                        TaggerFileStatus.SERVER_ERROR, fileResult.Error!));
                     continue;
                 }
 #if DEBUG
 IXmpMeta xmpMeta = 
 #endif
-                TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.TagsInfo)
+                TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.TagsInfo!)
 #if DEBUG
     ; xmpMeta
 #endif
@@ -313,11 +325,13 @@ IXmpMeta xmpMeta =
                 Log.Debug("All properties after update: ");
                 _DrawProperties(xmpMeta);
 #endif
-                statusList.Add(TaggerFileStatus.OK);
+                statusList.Add(new FileProcessingResult(filename,
+                    TaggerFileStatus.OK));
             }
             catch (XmpException e)
             {
-                throw new MultiFileException(filename, e);
+                statusList.Add(FileProcessingResult.CreateErrorResult(filename,
+                    TaggerFileStatus.INVALID_FILE, e.Message));
             }
         }
         return statusList.ToArray();
@@ -388,16 +402,16 @@ IXmpMeta xmpMeta =
         excludeFile.ForEach(x => files.Remove(x));
     }
     
-    private static void _LogFailedFiles(Dictionary<string, TaggerFileStatus> fileStatuses)
+    private static void _LogFailedFiles(List<FileProcessingResult> fileStatuses)
     {
         bool isAnyFailed = false;
-        foreach (var (key, value) in fileStatuses)
+        foreach (var fileStatus in fileStatuses)
         {
-            if (value != TaggerFileStatus.OK && value != TaggerFileStatus.SKIPPED && value != TaggerFileStatus.IGNORE)
+            if (!fileStatus.ProcessingStatus.IsFine())
             {
                 if (!isAnyFailed) Log.Error("This files failed to process: ");
                 isAnyFailed = true;
-                Log.Error($"{key}: {value.ToString()}");
+                Log.Error($"{fileStatus.Filename}: {fileStatus.Error} ({fileStatus.ProcessingStatus})");
             }
         }
     }

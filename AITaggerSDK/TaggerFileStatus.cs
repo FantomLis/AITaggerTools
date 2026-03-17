@@ -10,5 +10,12 @@ public enum TaggerFileStatus : byte
     NETWORK_FAILURE = 5,
     BAD_RESPONSE = 6,
     SERVER_RESPONSE_FILE_NOT_FOUND = 7,
-    IGNORE = 8
+    IGNORE = 8,
+    SERVER_ERROR = 9
+}
+
+public static class TaggerFileStatusExtension
+{
+    private static readonly TaggerFileStatus[] _FineStatuses = [TaggerFileStatus.OK, TaggerFileStatus.SKIPPED, TaggerFileStatus.IGNORE];
+    public static bool IsFine(this TaggerFileStatus status) => _FineStatuses.Contains(status);
 }
