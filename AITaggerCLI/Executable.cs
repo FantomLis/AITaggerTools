@@ -258,6 +258,7 @@ internal static class Executable
     {
         List<string> unprocessedFiles = new(filenames.Length);
         var endpointInfo = TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result;
+        if (endpointInfo is null) throw new AggregateException(new HttpRequestException("Server info is null."));
         foreach (var filename in filenames)
         {
             switch (ExtensionTools.GetClearExtension(filename))
