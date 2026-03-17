@@ -304,7 +304,7 @@ internal static class Executable
 #if DEBUG
 IXmpMeta xmpMeta = 
 #endif
-                TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.Data)
+                TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.TagsInfo)
 #if DEBUG
     ; xmpMeta
 #endif
