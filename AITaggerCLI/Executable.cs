@@ -150,7 +150,7 @@ internal static class Executable
         int currentFile = 0, fileCount = xmpFiles.Count, fileSkipped = 0;
         foreach (var file in xmpFiles)      
         {
-            UITools._LogProgress(currentFile, fileCount, fileSkipped);
+            UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
             try
             {
                 IXmpMeta xmpMeta = XmpManager.LoadFile(file);
@@ -164,7 +164,7 @@ internal static class Executable
             }
             finally{currentFile++;}
         }
-        UITools._LogProgress(currentFile, fileCount, fileSkipped);
+        UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
     }
 
     private static void _StartAsWebUI()
@@ -219,7 +219,7 @@ internal static class Executable
         {
             try
             {
-                UITools._LogProgress(currentFile, fileCount, fileSkipped);
+                UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
                 var curProcFiles = unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray();
                 var tagApplierStatuses = _GenerateDescriptionForFiles(curProcFiles, endpointUrl, backup);
                 for (var i = 0; i < tagApplierStatuses.Length; i++)
@@ -273,7 +273,7 @@ internal static class Executable
                 return null;
             }
         }
-        UITools._LogProgress(currentFile, fileCount, fileSkipped);
+        UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
         return fileStatuses;
     }
 
