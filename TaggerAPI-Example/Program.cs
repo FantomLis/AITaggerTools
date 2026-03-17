@@ -8,7 +8,7 @@ internal class Program
     /// <summary>
     /// Sets API ID for TaggerAPI
     /// </summary>
-    const string ApiId = "ExampleAITagger-API";
+    const string ApiId = "TaggerAPI-Example";
     /// <summary>
     /// Sets maximum form files size for request.
     /// </summary>

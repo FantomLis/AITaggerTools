@@ -7,7 +7,7 @@ using Flurl;
 namespace AITaggerSDK.Managers;
 
 // ReSharper disable once InconsistentNaming
-public static class APICaller
+public static class TaggerAPIManager
 {
     public static async Task<MultiFileResponse> RequestFilesDescription(string endpointUrl, params FileStream[] files)
         => await RequestFilesDescription(endpointUrl, files.Select(x => new FakeFileContainer (x, x.Name)).ToArray());
