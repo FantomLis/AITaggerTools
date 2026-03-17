@@ -78,8 +78,9 @@ public static class TagManager
         return xmpMeta;
     }
 
-    public static string[] GetAllTaggerTags(this IXmpMeta xmpMeta, string id)
+    public static string[] GetAllTaggerTags(this IXmpMeta xmpMeta, string? id)
     {
+        if (string.IsNullOrEmpty(id)) return [];
         if (!DoesTagListExists(xmpMeta)) return [];
         List<string> tags = new();
         for (int i = 1; i <= CountTags(xmpMeta); i++)

@@ -213,7 +213,7 @@ internal static class Executable
             }
 
             if (!XmpManager.LoadFile(filename.ToXmpFileName())
-                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result.EndpointId))
+                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result?.EndpointId))
             {
                 unprocessedFiles.Add(filename);
             }
