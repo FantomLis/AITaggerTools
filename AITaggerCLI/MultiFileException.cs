@@ -2,11 +2,9 @@
 
 public class MultiFileException : Exception
 {
-    public string Filename;
-    public Exception InnerException;
-    public MultiFileException(Exception inner, string filename)
+    public string Filename { get; init; }
+    public MultiFileException(string filename,Exception inner) : base ("File Exception.", inner)
     {
         Filename = filename;
-        InnerException = inner;
     }
 }

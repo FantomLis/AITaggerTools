@@ -20,6 +20,8 @@ internal class Program
     public static int MaxFileStoreTimeInMin = 60 * 4;
 
     private static Dictionary<string, DateTime> FileRemovingStruct = new ();
+    
+    private static string _TempFolder => Path.Combine(Directory.GetCurrentDirectory(), "temp");
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -31,11 +33,9 @@ internal class Program
         if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
         app.UseHttpsRedirection();
         
-        app.MapPost("/desc", Desc)
-            .WithName("SingleFileDescription");
-        app.MapPost("/desc/bulk/upload", Upload)
+        app.MapPost("/desc/upload", Upload)
             .WithName("BulkFileUpload");
-        app.MapGet("/desc/bulk/fetch", Fetch)
+        app.MapGet("/desc/fetch", Fetch)
             .WithName("BulkFileDescription");
         Task.Run(() =>
         {
@@ -88,28 +88,28 @@ internal class Program
         List<string>? input = (await r.Request.ReadFromJsonAsync<List<string>>())?.ToList();
         if (input == null) return;
         List<string> filepaths = new();
-        foreach (var filepath in input)
+        foreach (var filePath in input)
         {
-            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "temp", filepath))) continue;
+            if (!File.Exists(Path.Combine(_TempFolder, filePath))) continue;
             // Prepare your files
-            filepaths.Add(filepath);
+            filepaths.Add(filePath);
         }
 
-        var output = new List<SingleFileResponse>();
-        foreach (var filepath in filepaths)
+        var output = new List<SingleFile>();
+        foreach (var filePath in filepaths)
         {
             var result = "";
             try
             {
                 // ... connect to AI model and get results
-                result = RunModel(filepath);
+                result = RunModel(filePath);
                 
                 // ... parse results and put into results variable
                 result = ParseResults(result);
-                output.Add(new SingleFileResponse(Path.GetFileName(filepath), result, ApiId));
+                output.Add(new SingleFile(Path.GetFileName(filePath), result));
             
                 // Deleting temp file
-                File.Delete(filepath);
+                File.Delete(filePath);
             } // when failed, skip file
             catch (Exception ex)
             {
@@ -122,42 +122,6 @@ internal class Program
             EndpointId = ApiId,
             Files = output.ToArray()
         });
-    }
-
-    /// <summary>
-    /// /desc path for TaggerAPI. Process single file from form.
-    /// </summary>
-    private static async Task Desc(HttpContext r)
-    {
-        // This variable contains form for file
-        IFormFile formFile = r.Request.Form.Files.First();
-        
-        // This variable container path to file on drive
-        var filePath = await SaveFileToDrive(formFile);
-
-        // Variable for results
-        string results = string.Empty;
-        
-        // ... connect to AI model and get results
-        try
-        {
-            results = RunModel(filePath);
-        } // when failed, send error status code
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex);
-            r.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            return;
-        }
-        
-        // ... parse results and put into results variable
-        results = ParseResults(results);
-        
-        r.Response.Headers.Append("Endpoint-Id", ApiId);
-        await r.Response.WriteAsync(results);
-        
-        // Deleting temp file
-        File.Delete(filePath);
     }
 
     private static string ParseResults(string results)
@@ -202,31 +166,29 @@ internal class Program
 
     private static async Task<string> WriteFileToDrive(IFormFile formFile, byte[] file)
     {
-        string filePath = Path.Combine(Directory.GetCurrentDirectory(), "temp", Path.GetRandomFileName() + "_" + formFile.FileName);
-        Directory.CreateDirectory(Path.Combine(Directory.GetCurrentDirectory(), "temp"));
+        string filePath = Path.Combine(_TempFolder, Path.GetRandomFileName() + "_" + formFile.FileName);
+        Directory.CreateDirectory(_TempFolder);
         using (var f = File.Create(filePath)) await f.WriteAsync(file);
         return filePath;
     }
     
-    public class SingleFileResponse
+    public class SingleFile
     {
         public string Filename{ get; set; }
         public string Data{ get; set; }
-        public string EndpointId{ get; set; }
         
-        public SingleFileResponse() {}
+        public SingleFile() {}
 
-        public SingleFileResponse(string filename, string data, string endpointId)
+        public SingleFile(string filename, string data)
         {
             Filename = filename;
             Data = data;
-            EndpointId = endpointId;
         }
     }
 
     public class MultiFileResponse
     {
         public string EndpointId { get; set; }
-        public SingleFileResponse[] Files { get; set; }
+        public SingleFile[] Files { get; set; }
     }
 }

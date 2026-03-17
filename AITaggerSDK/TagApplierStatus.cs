@@ -8,5 +8,7 @@ public enum TagApplierStatus : byte
     INVALID_TYPE = 3,
     INVALID_FILE = 4,
     NETWORK_FAILURE = 5,
-    BAD_RESPONSE = 6
+    BAD_RESPONSE = 6,
+    SERVER_RESPONSE_FILE_NOT_FOUND = 7,
+    IGNORE = 8
 }

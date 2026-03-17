@@ -15,18 +15,16 @@ public static class XmpManager
         XmpMetaFactory.SchemaRegistry.RegisterNamespace(DigikamNs, "digiKam");
     }
     
-    public static IXmpMeta LoadFile(string name)
+    public static IXmpMeta LoadFile(string file)
     {
         IXmpMeta xmp = XmpMetaFactory.Create();
-        string file = ToXmpFileName(name);
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, loading.");
             using (var stream = File.OpenRead(file))
                 xmp = XmpMetaFactory.Parse(stream);
-            
-        }
-        Log.Debug($"Done LoadFile for {name}");
+        } else Log.Debug($"File {file} not found. Using clear IXmpMeta.");
+        Log.Debug($"Done loading file {file}");
         return xmp;
     }
     
@@ -41,27 +39,35 @@ public static class XmpManager
 
     public static IXmpMeta ApplyUniqueTag(this IXmpMeta xmpMeta, string id, string tag)
     {
-        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTag(xmpMeta, id, tag);
-        var t = GetAllTaggerTags(xmpMeta, id);
-        for (int i = 1; i < t.Length; i++)
-        {
-            if (CleanUpTag(t[i]) == tag) return xmpMeta;
-        }
-        ApplyTag(xmpMeta, id, tag);
-        return xmpMeta;
+        return xmpMeta.ApplyUniqueTags(id, [tag]);
+    }
+
+    private static bool DoesTagListExists(IXmpMeta xmpMeta)
+    {
+        return xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList);
     }
 
     public static IXmpMeta ClearTags(this IXmpMeta xmpMeta, string id)
     {
-        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return xmpMeta;
+        if (!DoesTagListExists(xmpMeta)) return xmpMeta;
         List<int> removedTags = new();
-        for (int i = xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i >= 1; i--)
+        for (int i = CountTags(xmpMeta); i >= 1; i--)
         {
-            var arrVal = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+            var arrVal = GetTag(xmpMeta, i);
             if (arrVal.Split('/')[0] == id) removedTags.Add(i);
         }
         removedTags.ForEach(x => xmpMeta.DeleteArrayItem(DigikamNs, DigikamTagsList, x));
         return xmpMeta;
+    }
+
+    private static string GetTag(IXmpMeta xmpMeta, int i)
+    {
+        return xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+    }
+
+    private static int CountTags(IXmpMeta xmpMeta)
+    {
+        return xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList);
     }
 
     public static IXmpMeta ApplyTags (this IXmpMeta xmpMeta, string id, params string[] tags)
@@ -75,7 +81,7 @@ public static class XmpManager
     }
     public static IXmpMeta ApplyUniqueTags(this IXmpMeta xmpMeta, string id,  params string[] tags)
     {
-        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return ApplyTags(xmpMeta, id, tags);
+        if (!DoesTagListExists(xmpMeta)) return ApplyTags(xmpMeta, id, tags);
         List<string> uniqueTags = tags.ToList();
         var t = GetAllTaggerTags(xmpMeta, id);
         for (int i = 0; i < t.Length; i++)
@@ -91,11 +97,11 @@ public static class XmpManager
 
     public static string[] GetAllTaggerTags(this IXmpMeta xmpMeta, string id)
     {
-        if (!xmpMeta.DoesPropertyExist(DigikamNs, DigikamTagsList)) return [];
+        if (!DoesTagListExists(xmpMeta)) return [];
         List<string> tags = new();
-        for (int i = 1; i <= xmpMeta.CountArrayItems(DigikamNs, DigikamTagsList); i++)
+        for (int i = 1; i <= CountTags(xmpMeta); i++)
         {
-            var arrVal = xmpMeta.GetArrayItem(DigikamNs, DigikamTagsList, i).Value;
+            var arrVal = GetTag(xmpMeta, i);
             if (arrVal.StartsWith(id+"/")) 
                 tags.Add(arrVal);
         }
@@ -103,20 +109,18 @@ public static class XmpManager
         return tags.ToArray();
     }
 
-    [Pure]
-    public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/')+1);
-
-    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string name, bool backupFile = true, string backupPath = "")
+    public static IXmpMeta SaveFile(this IXmpMeta xmpMeta, string file, string? backupPath = null)
     {
-        string file = ToXmpFileName(name);
-        if (string.IsNullOrWhiteSpace(backupPath)) backupPath = Path.GetDirectoryName(file)!;
+        var isBackupEnabled = !string.IsNullOrEmpty(backupPath);
+        if (!isBackupEnabled) backupPath = Path.GetDirectoryName(file)!;
+        
         if (File.Exists(file))
         {
             Log.Debug($"Found file {file}, cleaning up.");
-            if (backupFile)
+            if (isBackupEnabled)
             {
-                Directory.CreateDirectory(backupPath);
-                var destFileName = ToXmpFileName(Path.Combine(backupPath, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss}_" + Path.GetFileNameWithoutExtension(file)));
+                Directory.CreateDirectory(backupPath!);
+                var destFileName = ToXmpFileName(Path.Combine(backupPath!, $"old_{DateTime.Now:yyyy-dd-M-HH-mm-ss-ffff}_" + Path.GetFileNameWithoutExtension(file)));
                 File.Copy(file, destFileName);
                 Log.Debug($"Created file {destFileName} as backup.");
             }
@@ -128,38 +132,19 @@ public static class XmpManager
             // For some reason, padding in this lib works weird when padding is zero 
             Padding = 1
         });
-        Log.Debug($"Done SaveFile for {name}");
+        Log.Debug($"Done saving file {file}.");
         return xmpMeta;
     }
-
-    public static string ToXmpFileName(this string name)
-    {
-        return $"{name.Replace(".xmp", "")}.xmp";
-    }
     
-    [Obsolete("IdStructure is part of ApplyDataInDescription and is deprecated.")]
-    const string IdStructure = "\n{0}: ";
-    [Obsolete("Putting search data in description is deprecated. Use ApplyTags instead.")]
-    public static IXmpMeta ApplyDataInDescription(this IXmpMeta metadata, string id, string data)
+    [Pure]
+    public static string CleanUpTag(string tag) => tag.Remove(0, tag.IndexOf('/')+1);
+
+    [Pure]
+    public static string ToXmpFileName(this string filename)
     {
-        string currentDesc = string.Empty;
-        var descPropName = "dc:description[1]";
-        if (metadata.DoesPropertyExist(XmpConstants.NsDC, descPropName))
-        {
-            currentDesc = metadata.GetProperty(XmpConstants.NsDC, descPropName).Value;
-        }
-
-        var idStr = string.Format(IdStructure, id);
-        if (currentDesc.Contains(idStr))
-        {
-            var startIndex = currentDesc.IndexOf(idStr, StringComparison.InvariantCulture);
-            var endInd = currentDesc.IndexOf("\n", startIndex + 1, StringComparison.InvariantCulture);
-            currentDesc = currentDesc.Remove(startIndex, endInd-startIndex+1);
-        }
-
-        currentDesc += idStr + data + "\n";
-        metadata.SetProperty(XmpConstants.NsDC,descPropName,currentDesc);
-        metadata.SetQualifier(XmpConstants.NsDC, descPropName, XmpConstants.NsXml, XmpConstants.XmlLang, XmpConstants.XDefault);
-        return metadata;
+        return $"{filename.Replace(".xmp", "")}.xmp";
     }
+
+    [Pure]
+    public static bool IsXmpFile(this string filename) => ExtensionTools.GetClearExtension(Path.GetExtension(filename)) == "xmp";
 }
