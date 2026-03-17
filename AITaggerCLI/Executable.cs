@@ -257,6 +257,7 @@ internal static class Executable
     private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, List<FileProcessingResult> fileStatuses)
     {
         List<string> unprocessedFiles = new(filenames.Length);
+        var endpointInfo = TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result;
         foreach (var filename in filenames)
         {
             switch (ExtensionTools.GetClearExtension(filename))
@@ -285,9 +286,9 @@ internal static class Executable
                 unprocessedFiles.Add(filename);
                 continue;
             }
-
+            
             if (!XmpManager.LoadFile(filename.ToXmpFileName())
-                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result?.EndpointId))
+                    .IsTagsAlreadyExists(endpointInfo?.EndpointId))
             {
                 unprocessedFiles.Add(filename);
             }
