@@ -261,25 +261,21 @@ internal static class Executable
         if (endpointInfo is null) throw new AggregateException(new HttpRequestException("Server info is null."));
         foreach (var filename in filenames)
         {
-            switch (ExtensionTools.GetClearExtension(filename))
+            var ext = ExtensionTools.GetClearExtension(filename);
+            switch (ext)
             {
-                case "png":
-                case "jpg":
-                case "jpeg":
-                case "webp":
-                case "gif":
-                case "avi":
-                case "mp4":
-                case "mkv":
-                case "webm":
-                    break;
                 case "xmp":
                 case "txt":
                     fileStatuses.Add(FileProcessingResult.CreateIgnored(filename));
                     continue;
                 default:
-                    fileStatuses.Add(FileProcessingResult.CreateErrorResult(filename, TaggerFileStatus.INVALID_TYPE, $"File {filename} is unsupported."));
-                    continue;
+                    if (!endpointInfo.IsFiletypeSupported(ext))
+                    {
+                        fileStatuses.Add(FileProcessingResult.CreateErrorResult(filename, TaggerFileStatus.INVALID_TYPE,
+                            $"File {filename} is unsupported."));
+                        continue;
+                    }
+                    break;
             }
 
             if (!quick)
