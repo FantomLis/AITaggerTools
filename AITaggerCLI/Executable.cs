@@ -2,6 +2,7 @@
 using AITaggerCLI.Exceptions;
 using AITaggerCLI.Tools;
 using AITaggerSDK;
+using AITaggerSDK.API.Responses;
 using AITaggerSDK.Managers;
 using AITaggerSDK.Tools;
 using Serilog;
@@ -212,7 +213,7 @@ internal static class Executable
             }
 
             if (!XmpManager.LoadFile(filename.ToXmpFileName())
-                    .IsTagsAlreadyExists(TaggerAPIManager.GetEndpointInfo(endpointUrl).Result.EndpointId))
+                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(endpointUrl).Result.EndpointId))
             {
                 unprocessedFiles.Add(filename);
             }
@@ -322,7 +323,7 @@ IXmpMeta xmpMeta =
         return statusList.ToArray();
     }
 
-    private static TaggerAPIManager.MultiFileResponse GetDescriptionResults(string[] filenames, string endpointUrl)
+    private static MultiFileResponse GetDescriptionResults(string[] filenames, string endpointUrl)
     {
         List<FileStream> fileStreams = new();
         foreach (var filename in filenames)

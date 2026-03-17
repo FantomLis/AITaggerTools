@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using AITaggerSDK.API.Responses;
 using AITaggerSDK.Containers;
 using Flurl;
 
@@ -52,7 +53,7 @@ public static class TaggerAPIManager
         return multiFileResponse;
     }
 
-    public static async Task<EndpointInfo> GetEndpointInfo(string endpointUrl)
+    public static async Task<EndpointInfo?> RequestEndpointInfo(string endpointUrl)
     {
         HttpClient client = new HttpClient();
         var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "info")));
@@ -73,34 +74,5 @@ public static class TaggerAPIManager
             await client.PostAsync(endpoint, form);
         return response;
     }
-
-    public class SingleFile
-    {
-        public string Filename{ get; set; }
-        public string Data{ get; set; }
-        
-        public SingleFile() {}
-
-        public SingleFile(string filename, string data)
-        {
-            Filename = filename;
-            Data = data;
-        }
-    }
-
-    public class MultiFileResponse
-    {
-        public MultiFileResponse(string endpointId)
-        {
-            EndpointId = endpointId;
-        }
-
-        public string EndpointId { get; set; }
-        public SingleFile[] Files { get; set; } = [];
-    }
-
-    public record EndpointInfo(string EndpointId)
-    {
-        public string EndpointId { get; } = EndpointId;
-    }
+    
 }
