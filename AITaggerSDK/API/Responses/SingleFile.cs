@@ -3,13 +3,19 @@
 public class SingleFile
 {
     public string Filename{ get; set; }
-    public string Data{ get; set; }
-        
-    public SingleFile() {}
+    /// <remarks>
+    /// Null when <see cref="IsError"/> is true
+    /// </remarks>
+    public string? TagsInfo{ get; set; }
+    public string? Error { get; set; }
+    public bool IsError => !string.IsNullOrEmpty(Error);
 
-    public SingleFile(string filename, string data)
+    public SingleFile(string filename, string? tagsInfo, string? error = null)
     {
         Filename = filename;
-        Data = data;
+        TagsInfo = tagsInfo;
+        Error = error;
     }
+
+    public static SingleFile CreateErrorResponse(string filename, string error) => new SingleFile(filename, null, error);
 }

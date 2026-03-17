@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AITaggerSDK.API.Responses;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 
@@ -116,12 +117,15 @@ internal class Program
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+                
+                // Send some error info 
+                // Please do not use ex.Message, send informative error message for client, not for developer
+                output.Add(new SingleFile(Path.GetFileName(filePath), null, "Failed to process your file."));
                 continue;
             }
         }
-        await r.Response.WriteAsJsonAsync(new MultiFileResponse()
+        await r.Response.WriteAsJsonAsync(new MultiFileResponse(ApiId)
         {
-            EndpointId = ApiId,
             Files = output.ToArray()
         });
     }
@@ -172,35 +176,5 @@ internal class Program
         Directory.CreateDirectory(_TempFolder);
         using (var f = File.Create(filePath)) await f.WriteAsync(file);
         return filePath;
-    }
-    
-    public class SingleFile
-    {
-        public string Filename{ get; set; }
-        public string Data{ get; set; }
-        
-        public SingleFile() {}
-
-        public SingleFile(string filename, string data)
-        {
-            Filename = filename;
-            Data = data;
-        }
-    }
-
-    public class MultiFileResponse
-    {
-        public string EndpointId { get; set; }
-        public SingleFile[] Files { get; set; }
-    }
-    
-    public class EndpointInfo
-    {
-        public EndpointInfo(string endpointId)
-        {
-            EndpointId = endpointId;
-        }
-
-        public string EndpointId { get; set; }
     }
 }

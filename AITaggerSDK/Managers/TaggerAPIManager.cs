@@ -46,7 +46,6 @@ public static class TaggerAPIManager
         }
 
         var multiFileResponse = (await response.Content.ReadFromJsonAsync<MultiFileResponse>());
-        if (multiFileResponse?.Files == null) throw new HttpRequestException("Invalid response.");
         try
         {
             foreach (var file in multiFileResponse.Files)
