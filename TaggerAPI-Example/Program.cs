@@ -117,6 +117,10 @@ internal class Program
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+                
+                // Send some error info 
+                // Please do not use ex.Message, send informative error message for client, not for developer
+                output.Add(new SingleFile(Path.GetFileName(filePath), null, "Failed to process your file."));
                 continue;
             }
         }
