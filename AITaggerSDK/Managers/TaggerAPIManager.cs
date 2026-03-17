@@ -10,11 +10,19 @@ namespace AITaggerSDK.Managers;
 // ReSharper disable once InconsistentNaming
 public static class TaggerAPIManager
 {
-    public static async Task<MultiFileResponse> RequestFilesDescription(string endpointUrl, params FileStream[] files)
-        => await RequestFilesDescription(endpointUrl, files.Select(x => new FakeFileContainer (x, x.Name)).ToArray());
-    public static async Task<MultiFileResponse> RequestFilesDescription(string endpointUrl, params FakeFileContainer[] files)
+    private static Lazy<HttpClient?> _HttpClient = new Lazy<HttpClient?>();
+    public static HttpClient Default
     {
-        HttpClient client = new HttpClient();
+        get
+        {
+            if (_HttpClient.Value == null) _HttpClient = new Lazy<HttpClient?>();
+            return _HttpClient.Value!;
+        }
+    }
+    public static async Task<MultiFileResponse> RequestFilesDescription(HttpClient client, string endpointUrl, params FileStream[] files)
+        => await RequestFilesDescription(client, endpointUrl, files.Select(x => new FakeFileContainer (x, x.Name)).ToArray());
+    public static async Task<MultiFileResponse> RequestFilesDescription(HttpClient client, string endpointUrl, params FakeFileContainer[] files)
+    {
         Dictionary<string, string> fileMap = new();
         HttpResponseMessage response;
         foreach (var file in files)
@@ -53,9 +61,8 @@ public static class TaggerAPIManager
         return multiFileResponse;
     }
 
-    public static async Task<EndpointInfo?> RequestEndpointInfo(string endpointUrl)
+    public static async Task<EndpointInfo?> RequestEndpointInfo(HttpClient client, string endpointUrl)
     {
-        HttpClient client = new HttpClient();
         var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "info")));
         if (!response.IsSuccessStatusCode)
         {

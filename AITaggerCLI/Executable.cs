@@ -213,7 +213,7 @@ internal static class Executable
             }
 
             if (!XmpManager.LoadFile(filename.ToXmpFileName())
-                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(endpointUrl).Result.EndpointId))
+                    .IsTagsAlreadyExists(TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result.EndpointId))
             {
                 unprocessedFiles.Add(filename);
             }
@@ -332,7 +332,7 @@ IXmpMeta xmpMeta =
             
             fileStreams.Add(new FileStream(filename, FileMode.Open));
         }
-        var apiResponse = TaggerAPIManager.RequestFilesDescription(endpointUrl, fileStreams.ToArray()).Result;
+        var apiResponse = TaggerAPIManager.RequestFilesDescription(TaggerAPIManager.Default, endpointUrl, fileStreams.ToArray()).Result;
         
         //Close files after processing every file
         fileStreams.ForEach(x => x.Close());
