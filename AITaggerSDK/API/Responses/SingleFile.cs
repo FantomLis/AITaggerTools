@@ -1,4 +1,6 @@
-﻿namespace AITaggerSDK.API.Responses;
+﻿using System.Text.Json.Serialization;
+
+namespace AITaggerSDK.API.Responses;
 
 public class SingleFile
 {
@@ -8,6 +10,7 @@ public class SingleFile
     /// </remarks>
     public string? TagsInfo{ get; set; }
     public string? Error { get; set; }
+    [JsonIgnore]
     public bool IsError => !string.IsNullOrEmpty(Error);
 
     public SingleFile(string filename, string? tagsInfo, string? error = null)
