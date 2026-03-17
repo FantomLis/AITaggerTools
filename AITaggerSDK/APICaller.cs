@@ -51,6 +51,18 @@ public static class APICaller
         return multiFileResponse;
     }
 
+    public static async Task<EndpointInfo> GetEndpointInfo(string endpointUrl)
+    {
+        HttpClient client = new HttpClient();
+        var response = await client.SendAsync (new HttpRequestMessage(HttpMethod.Get, Url.Combine(endpointUrl, "info")));
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"{(int)response.StatusCode}: {response.ReasonPhrase}");
+        }
+
+        return await response.Content.ReadFromJsonAsync<EndpointInfo>();
+    }
+
     private static async Task<HttpResponseMessage> _SendFile(string endpoint, HttpClient client,
         Stream file, string filename)
     {
@@ -77,7 +89,17 @@ public static class APICaller
 
     public class MultiFileResponse
     {
+        public MultiFileResponse(string endpointId)
+        {
+            EndpointId = endpointId;
+        }
+
         public string EndpointId { get; set; }
-        public SingleFile[] Files { get; set; }
+        public SingleFile[] Files { get; set; } = [];
+    }
+
+    public record EndpointInfo(string EndpointId)
+    {
+        public string EndpointId { get; } = EndpointId;
     }
 }
