@@ -182,7 +182,16 @@ internal static class Executable
     private static List<FileProcessingResult>? _UseFiles(string[] filenames, string endpointUrl, string? backup = null, bool quick = true)
     {
         List<FileProcessingResult> fileStatuses = new (filenames.Length);
-        var unprocessedFiles = _CreateFileList(filenames, endpointUrl, quick, fileStatuses);
+        List<string> unprocessedFiles;
+        try
+        {
+            unprocessedFiles = _CreateFileList(filenames, endpointUrl, quick, fileStatuses);
+        }
+        catch (AggregateException ex)
+        {
+            return _NetworkAggregateException(ex);
+        }
+
         int fileCount = filenames.Length, fileSkipped = fileCount - unprocessedFiles.Count, currentFile = fileSkipped;
         while (unprocessedFiles.Count > 0)
         {
@@ -218,19 +227,7 @@ internal static class Executable
             }
             catch (AggregateException ex)
             {
-                var msg = UNHANDLED_ERROR;
-                if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
-                {
-                    msg = INVALID_ENDPOINT;
-                }
-                else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
-                {
-                    msg = SERVER_RESPOND_FAIL;
-                }
-
-                _FormattedError(msg, ex.InnerException?.Message);
-                _DebugLogError(ex.InnerException);
-                return null;
+                return _NetworkAggregateException(ex);
             }
             catch (Exception ex)
             {
@@ -241,6 +238,23 @@ internal static class Executable
         }
         UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
         return fileStatuses;
+    }
+
+    private static List<FileProcessingResult>? _NetworkAggregateException(AggregateException ex)
+    {
+        var msg = UNHANDLED_ERROR;
+        if (ex.InnerException?.GetType() == typeof(InvalidOperationException))
+        {
+            msg = INVALID_ENDPOINT;
+        }
+        else if (ex.InnerException?.GetType() == typeof(HttpRequestException))
+        {
+            msg = SERVER_RESPOND_FAIL;
+        }
+
+        _FormattedError(msg, ex.InnerException?.Message);
+        _DebugLogError(ex.InnerException);
+        return null;
     }
 
     private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, List<FileProcessingResult> fileStatuses)
