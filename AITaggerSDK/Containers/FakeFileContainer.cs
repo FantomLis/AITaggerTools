@@ -1,4 +1,4 @@
-﻿namespace AITaggerSDK;
+﻿namespace AITaggerSDK.Containers;
 
 public record FakeFileContainer(Stream File, string Filename)
 {

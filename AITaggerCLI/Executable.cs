@@ -1,5 +1,9 @@
 ﻿using System.CommandLine;
+using AITaggerCLI.Exceptions;
+using AITaggerCLI.Tools;
 using AITaggerSDK;
+using AITaggerSDK.Managers;
+using AITaggerSDK.Tools;
 using Serilog;
 using XmpCore;
 

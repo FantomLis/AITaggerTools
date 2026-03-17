@@ -1,9 +1,10 @@
 ﻿using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using AITaggerSDK.Containers;
 using Flurl;
 
-namespace AITaggerSDK;
+namespace AITaggerSDK.Managers;
 
 // ReSharper disable once InconsistentNaming
 public static class APICaller

@@ -1,6 +1,6 @@
 ﻿using Serilog;
 
-namespace AITaggerCLI;
+namespace AITaggerCLI.Tools;
 
 internal static class UITools
 {

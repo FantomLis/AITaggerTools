@@ -1,4 +1,4 @@
-﻿namespace AITaggerCLI;
+﻿namespace AITaggerCLI.Exceptions;
 
 public class MultiFileException : Exception
 {

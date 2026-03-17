@@ -1,4 +1,4 @@
-﻿namespace AITaggerSDK;
+﻿namespace AITaggerSDK.Managers;
 
 public static class TagManager
 {

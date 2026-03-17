@@ -1,4 +1,4 @@
-﻿namespace AITaggerSDK;
+﻿namespace AITaggerSDK.Tools;
 
 public static class ExtensionTools
 {

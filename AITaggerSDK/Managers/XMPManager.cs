@@ -1,9 +1,10 @@
 ﻿using System.Diagnostics.Contracts;
+using AITaggerSDK.Tools;
 using Serilog;
 using XmpCore;
 using XmpCore.Options;
 
-namespace AITaggerSDK;
+namespace AITaggerSDK.Managers;
 
 public static class XmpManager
 {

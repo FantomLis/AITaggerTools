@@ -1,6 +1,6 @@
 ﻿using XmpCore;
 
-namespace AITaggerSDK;
+namespace AITaggerSDK.Managers;
 
 public static class TagApplier
 {
