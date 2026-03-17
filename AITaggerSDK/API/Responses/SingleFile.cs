@@ -17,5 +17,5 @@ public class SingleFile
         Error = error;
     }
 
-    public SingleFile CreateErrorResponse(string filename, string error) => new SingleFile(filename, null, error);
+    public static SingleFile CreateErrorResponse(string filename, string error) => new SingleFile(filename, null, error);
 }
