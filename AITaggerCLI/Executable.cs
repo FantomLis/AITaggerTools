@@ -36,7 +36,7 @@ internal static class Executable
         cmd.Validators.Add(parseResult => {
             clearTag = parseResult.GetValue<string?>(clearTagsOption);
             endpointUrl = parseResult.GetValue<string?>(endpointUrlOption);
-            if (endpointUrl == null && clearTag == null) parseResult.AddError("Endpoint should be present.");
+            if (endpointUrl == null && clearTag == null) parseResult.AddError("Option --endpoint is required.");
         });
         
         cmd.SetAction(parseResult =>
@@ -85,7 +85,7 @@ internal static class Executable
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
-                                      "Requires AITagger REST API endpoint to send your images/videos.\n" +
+                                      "Requires AITaggerAPI REST API endpoint to send your images/videos.\n" +
                                       "When using folder, tool will scan all folders inside and scan every file.");
 
         inputPathsOption = new("--input", "-i")
@@ -96,7 +96,7 @@ internal static class Executable
         };
         endpointUrlOption = new("--endpoint", "-e")
         {
-            Description = "REST API endpoint, that supports PUT /desc with image uploading.",
+            Description = "REST API endpoint, that supports POST /desc/upload for image uploading, GET /info for endpoint info and GET /desc/fetch for fetching image tags.",
             Required = false,
             DefaultValueFactory = _ => null
         };
