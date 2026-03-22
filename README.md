@@ -9,18 +9,18 @@ Small CLI-tool, that uploads your files to AI model endpoint, fetches tags and a
 You can download AITaggerCLI from releases or build it yourself.
 ## Usage
 ```bash
-Usage:
-  AITaggerCLI [options]
-
 Description:
   CLI-tool for AI tags applying.
   Original purpose of that app is to allow custom AI models to be used for smart search in Immich.
-  Requires AITagger REST API endpoint to send your images/videos.
+  Requires AITaggerAPI REST API endpoint to send your images/videos.
   When using folder, tool will scan all folders inside and scan every file.
+
+Usage:
+  AITaggerCLI [options]
 
 Options:
   -i, --input <input> (REQUIRED)                     Input file (should be video or image) or folder. Multiple inputs allowed.
-  -e, --endpoint <endpoint>                          REST API endpoint, that supports PUT /desc with image uploading.
+  -e, --endpoint <endpoint>                          REST API endpoint, that supports POST /desc/upload for image uploading, GET /info for endpoint info and GET /desc/fetch for fetching image tags.
   -o, --output <output>                              Target file for .xmp files. Will be ignored when multiple inputs or directory as input is used.
   -b, --backup <backup>                              Move original file to other location with old_[DATE] prefix.
   -q, -quick, --quick-apply                          Checks if any tag in .xmp file has endpoint id and skips file if so.
