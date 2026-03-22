@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AITaggerSDK", "AITaggerSDK\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AITaggerCLI", "AITaggerCLI\AITaggerCLI.csproj", "{A4F38D57-DCC7-4F52-AD65-F6D6FB8A7C3F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaggerAPI-Example", "TaggerAPI-Example\TaggerAPI-Example.csproj", "{80A8A86B-C4F3-4683-9CE6-9503B1197214}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AITaggerAPI-Example", "AITaggerAPI-Example\AITaggerAPI-Example.csproj", "{80A8A86B-C4F3-4683-9CE6-9503B1197214}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
