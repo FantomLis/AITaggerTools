@@ -9,6 +9,7 @@
     <ItemGroup>
         <PackageReference Include="Magick.NET.Core" Version="14.11.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10"/>
+        <PackageReference Include="xFFmpeg.NET" Version="7.2.0" />
     </ItemGroup>
 
     <ItemGroup>
