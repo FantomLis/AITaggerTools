@@ -2,6 +2,7 @@ using System.Text.Json;
 using AITaggerSDK.API.Responses;
 using FFmpeg.NET;
 using FFmpeg.NET.Events;
+using ImageMagick;
 using InputFile = FFmpeg.NET.InputFile;
 
 internal class Program
@@ -193,6 +194,26 @@ internal class Program
                 Seek = TimeSpan.FromSeconds(j)
             }, token);
         }
+
+        return path;
+    }
+    
+    // Use this method if your model cannot tag animated images (aka gifs) and only works with images
+    // This method will get all frames from gif
+    // Send it into model and then merge every result together
+    // You can concat all unique tags into one entry and send it
+    private static async Task<string> _PrepareAnimatedImage(string filePath, CancellationToken token)
+    {
+        var path = filePath + ".d";
+        Directory.CreateDirectory(path);
+        using var images = new MagickImageCollection(filePath);
+        int frameCount = 0;
+        foreach (var image in images)
+        {
+            await image.WriteAsync(Path.Combine(path, frameCount++ + ".png"), token);
+        }
+
+        return path;
     }
     
     private static void _OnProgressFFmpeg(object sender, ConversionProgressEventArgs e)
