@@ -147,7 +147,8 @@ internal static class Executable
         rootCommand.Options.Add(limitFileCount);
         return rootCommand;
     }
-
+    
+    private static int _taggerModeRetryCount = 0;
     private static void _StartAsTagger(List<string> fileList, string? xmpFileLocation, string? endpointUrl, string? pathToBackup,
         bool quick, bool ignoreExt)
     {
@@ -155,11 +156,39 @@ internal static class Executable
         {
             Log.Error("--output option will be ignored, multiple files supplied.");
         }
-        
-        var fileStatuses = _UseFiles(fileList.ToArray(), endpointUrl!,
-            pathToBackup, quick, ignoreExt);
-        if (fileStatuses is null)  return;
-        _LogFailedFiles(fileStatuses);
+
+        List<string> currentFileList = new List<string>(fileList);
+        while (_taggerModeRetryCount < 3 && currentFileList.Count > 0)
+        {
+            if (_taggerModeRetryCount != 0) Log.Information("Retrying to process files...");
+            var fileStatuses = _UseFiles(currentFileList.ToArray(), endpointUrl!,
+                pathToBackup, quick, ignoreExt);
+            if (fileStatuses is null)
+            {
+                _taggerModeRetryCount++;
+                continue;
+            }
+            bool isAnyFailed = false;
+            currentFileList.Clear();
+            foreach (var fileStatus in fileStatuses)
+            {
+                if (!fileStatus.ProcessingStatus.IsFine())
+                {
+                    if (!isAnyFailed) Log.Error("This files failed to process: ");
+                    isAnyFailed = true;
+                    Log.Error($"{fileStatus.Filename}: {fileStatus.Error} ({fileStatus.ProcessingStatus})");
+                    currentFileList.Add(fileStatus.Filename);
+                }
+            }
+
+            if (isAnyFailed)
+            {
+                _taggerModeRetryCount++;
+                continue;
+            }
+            return;
+        }
+        Log.Error("Failed to proceed all files.");
     }
 
     private static void _StartAsCleaner(List<string> files, string clearTag, string? backupFile)
@@ -454,19 +483,6 @@ IXmpMeta xmpMeta =
         excludeFile.ForEach(x => files.Remove(x));
     }
     
-    private static void _LogFailedFiles(List<FileProcessingResult> fileStatuses)
-    {
-        bool isAnyFailed = false;
-        foreach (var fileStatus in fileStatuses)
-        {
-            if (!fileStatus.ProcessingStatus.IsFine())
-            {
-                if (!isAnyFailed) Log.Error("This files failed to process: ");
-                isAnyFailed = true;
-                Log.Error($"{fileStatus.Filename}: {fileStatus.Error} ({fileStatus.ProcessingStatus})");
-            }
-        }
-    }
     private static void _FormattedError(string reason, string? message)
     {
         Log.Error($"{reason}{(message is null ? "": ": ")}{message}");
