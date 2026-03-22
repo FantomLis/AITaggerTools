@@ -215,8 +215,10 @@ internal static class Executable
             try
             {
                 UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
+                Log.Information($"Uploading {fileSendCount} files...");
+                var currentFilesArray = unprocessedFiles.Take(new Range(0, fileSendCount)).ToArray();
                 var fileProcessingResults = 
-                    _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, fileSendCount)).ToArray(), endpointUrl, backup);
+                    _GenerateDescriptionForFiles(currentFilesArray, endpointUrl, backup);
                 foreach (var result in fileProcessingResults)
                 {
                     fileStatuses.Add(result);
@@ -376,19 +378,32 @@ IXmpMeta xmpMeta =
 
     private static MultiFileResponse GetDescriptionResults(string[] filenames, string endpointUrl)
     {
-        List<FileStream> fileStreams = new();
+        Dictionary<string, string> fileMap = new();
+        float progress = 0, progressStep = 100f / filenames.Length;
         foreach (var filename in filenames)
         {
             if (!File.Exists(filename)) throw new ArgumentException($"File {filename} does not exist.");
-            
-            fileStreams.Add(new FileStream(filename, FileMode.Open));
+            using var file = new FileStream(filename, FileMode.Open);
+            Log.Information("Uploading files: " + UITools._BuildProgressBar((int)Math.Floor(progress)));
+            fileMap.Add(TaggerAPIManager.UploadFile(TaggerAPIManager.Default, endpointUrl, file).Result,Path.GetFileName(file.Name));
+            Log.Information($"File {filename} uploaded.");
+            progress += progressStep;
         }
-        var apiResponse = TaggerAPIManager.RequestFilesDescription(TaggerAPIManager.Default, endpointUrl, fileStreams.ToArray()).Result;
+        Log.Information("Uploading files: " + UITools._BuildProgressBar((int)Math.Floor(progress)));
         
-        //Close files after processing every file
-        fileStreams.ForEach(x => x.Close());
-        fileStreams.ForEach(x => x.Dispose());
-        return apiResponse;
+        var multiFileResponse = TaggerAPIManager.FetchDescription(TaggerAPIManager.Default, endpointUrl, fileMap.Keys).Result;
+        try
+        {
+            foreach (var file in multiFileResponse.Files)
+            {
+                file.Filename = fileMap[file.Filename];
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new HttpRequestException($"Invalid response: {ex.Message}");
+        }
+        return multiFileResponse;
     }
     
     /// <summary>
