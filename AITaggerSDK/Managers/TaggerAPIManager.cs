@@ -10,7 +10,10 @@ namespace AITaggerSDK.Managers;
 // ReSharper disable once InconsistentNaming
 public static class TaggerAPIManager
 {
-    private static Lazy<HttpClient?> _HttpClient = new Lazy<HttpClient?>();
+    private static Lazy<HttpClient?> _HttpClient = new Lazy<HttpClient?>(new HttpClient()
+    {
+        Timeout = TimeSpan.FromMinutes(30)
+    });
     public static HttpClient Default
     {
         get
