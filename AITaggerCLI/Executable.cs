@@ -41,30 +41,39 @@ internal static class Executable
         
         cmd.SetAction(parseResult =>
         {
-            if (parseResult.GetValue<bool>(webuiOption) == true)
+            try
             {
-                _StartAsWebUI();
-                return;
-            }
+                if (parseResult.GetValue<bool>(webuiOption) == true)
+                {
+                    _StartAsWebUI();
+                    return;
+                }
             
-            string[] paths = parseResult.GetValue(inputPathsOption)!;
-            string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
-            bool ignoreExt = parseResult.GetValue(ignoreInvalidExtensionsOption);
-            FileSendCount = parseResult.GetValue<int>(limitFileCount);
+                string[] paths = parseResult.GetValue(inputPathsOption)!;
+                string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
+                bool ignoreExt = parseResult.GetValue(ignoreInvalidExtensionsOption);
+                FileSendCount = parseResult.GetValue<int>(limitFileCount);
 
-            List<string> fileList = _GetAllFiles(paths);
+                List<string> fileList = _GetAllFiles(paths);
             
-            if (clearTag != null)
+                if (clearTag != null)
+                {
+                    _StartAsCleaner(fileList, clearTag, pathToBackup);
+                    return;
+                }
+                _ExcludeTextFiles(fileList);
+            
+                string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileSavePathOption);
+                bool quick = parseResult.GetValue<bool>(quickOption);
+            
+                _StartAsTagger(fileList, xmpFileLocation, endpointUrl, pathToBackup, quick, ignoreExt);
+            }
+            catch (Exception ex)
             {
-                _StartAsCleaner(fileList, clearTag, pathToBackup);
+                Log.Error($"Unhandled error: {ex}");
+                _DebugLogError(ex);
                 return;
             }
-            _ExcludeTextFiles(fileList);
-            
-            string? xmpFileLocation = parseResult.GetValue<string?>(xmpFileSavePathOption);
-            bool quick = parseResult.GetValue<bool>(quickOption);
-            
-            _StartAsTagger(fileList, xmpFileLocation, endpointUrl, pathToBackup, quick, ignoreExt);
         });
 
         return cmd.Parse(args).Invoke();
@@ -229,12 +238,6 @@ internal static class Executable
             catch (AggregateException ex)
             {
                 return _NetworkAggregateException(ex);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unhandled error: {ex}");
-                _DebugLogError(ex);
-                return null;
             }
         }
         UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
