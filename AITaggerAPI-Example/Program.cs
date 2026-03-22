@@ -207,6 +207,7 @@ internal class Program
         var path = filePath + ".d";
         Directory.CreateDirectory(path);
         using var images = new MagickImageCollection(filePath);
+        images.Coalesce(); 
         int frameCount = 0;
         foreach (var image in images)
         {
