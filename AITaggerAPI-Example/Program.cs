@@ -1,7 +1,10 @@
 using System.Text.Json;
 using AITaggerSDK.API.Responses;
-using Emgu.CV;
-using Emgu.CV.CvEnum;
+using FFmpeg.NET;
+using FFmpeg.NET.Events;
+using ImageMagick;
+using Imazen.WebP;
+using InputFile = FFmpeg.NET.InputFile;
 
 internal class Program
 {
@@ -10,6 +13,7 @@ internal class Program
     /// Sets API ID for TaggerAPI
     /// </summary>
     const string ApiId = "AITaggerAPI-Example";
+    static readonly Engine _Engine = new Engine(Environment.GetEnvironmentVariable(FFMPEGPATH) ?? "./ffmpeg.exe");
     /// <summary>
     /// Sets maximum form files size for request.
     /// </summary>
@@ -26,12 +30,17 @@ internal class Program
 
     private const string MAXFILESIZE = "AITAGGERAPI_MAXFILESIZE";
     private const string MAXFILESTORETIME = "AITAGGERAPI_MAXFILESTORETIME";
+    private const string FFMPEGPATH = "AITAGGERAPI_FFMPEG_PATH";
 
     #endregion
     
     private static string _TempFolder => Path.Combine(Directory.GetCurrentDirectory(), "temp");
     public static void Main(string[] args)
     {
+        ResourceLimits.Memory = 32;
+        _Engine.Progress += _OnProgressFFmpeg;
+        _Engine.Error += (sender, e) =>
+            Console.WriteLine("[{0} => {1}]: Error: {2}\n{3}", e.Input.Name, e.Output?.Name, e.Exception.ExitCode, e.Exception.InnerException);
         MaxFileSizeInMb = int.Parse(Environment.GetEnvironmentVariable(MAXFILESIZE) ?? MaxFileSizeInMb.ToString());
         MaxFileStoreTimeInMin = int.Parse(Environment.GetEnvironmentVariable(MAXFILESTORETIME) ?? MaxFileSizeInMb.ToString());
         var builder = WebApplication.CreateBuilder(args);
@@ -169,24 +178,78 @@ internal class Program
     }
 
     // Use this method if your model cannot tag videos and only works with images
-    // This method will create image every ~1 second of video
+    // This method will create image every "frameTime" second of video
     // Send it into model and then merge every result together
     // You can concat all unique tags into one entry and send it
-    private static void _PrepareVideo(string filePath)
+    private static async Task<string> _PrepareVideo(string filePath, float frameTime, CancellationToken token)
     {
-        Directory.CreateDirectory(filePath + ".d");
-        int i = 0;
-        using (var video = new VideoCapture(filePath))
-        using (var img = new Mat())
+        var path = filePath + ".d";
+        Directory.CreateDirectory(path);
+        var inputFile = new InputFile (filePath);
+        var duration = (await _Engine.GetMetaDataAsync(inputFile, token)).Duration.TotalSeconds;
+        int frameNumber = 0;
+        for (float j = 0; j < duration; j+=frameTime)
         {
-            while (video.Grab())
+            var outputFile = new OutputFile(Path.Combine(path, $"{frameNumber++}.png"));
+            await _Engine.GetThumbnailAsync(inputFile, outputFile, new ConversionOptions()
             {
-                video.Retrieve(img);
-                var filename = Path.Combine(filePath+".d", $"{i}.jpg");
-                CvInvoke.Imwrite(filename, img);
-                i+=(int) Math.Floor(video.Get(CapProp.Fps));
-            }
+                Seek = TimeSpan.FromSeconds(j)
+            }, token);
         }
+
+        return path;
+    }
+    
+    // Use this method if your model cannot tag animated images (aka gifs) and only works with images
+    // This method will get all frames from gif
+    // Send it into model and then merge every result together
+    // You can concat all unique tags into one entry and send it
+    private static async Task<string> _PrepareAnimatedImage(string filePath, CancellationToken token)
+    {
+        var path = filePath + ".d";
+        Directory.CreateDirectory(path);
+        using var images = new MagickImageCollection();
+        using var file = new FileStream(filePath, FileMode.Open);
+        await images.ReadAsync(file, token);
+        images.Coalesce(); 
+        int frameCount = 0;
+        foreach (var image in images)
+        {
+            await image.WriteAsync(Path.Combine(path, frameCount++ + ".png"), token);
+        }
+
+        return path;
+    }
+    
+    // Same as previous, but uses different webp wrapper for situations when ImageMagick crashes your host with memory overflow
+    private static async Task<string> _PrepareAnimatedImageWebp(string filePath, CancellationToken token)
+    {
+        var path = filePath + ".d";
+        Directory.CreateDirectory(path);
+        byte[] animatedWebP = await File.ReadAllBytesAsync(filePath, token);
+        using var decoder = new AnimDecoder(animatedWebP);
+        Console.WriteLine($"{decoder.Info.FrameCount} frames, {decoder.Info.Width}x{decoder.Info.Height}");
+        int frameCount = 0;
+        AnimFrame frame;
+        while (decoder.HasMoreFrames())
+        {
+            frame = decoder.GetNextFrame()!;
+            await File.WriteAllBytesAsync(Path.Combine(path, $"{frameCount++}.webp"), 
+                WebPEncoder.Encode(frame.Pixels, frame.Width, frame.Height, frame.Width * 4, WebPPixelFormat.Bgra, quality: 80), token);
+        }
+
+        return path;
+    }
+    
+    private static void _OnProgressFFmpeg(object sender, ConversionProgressEventArgs e)
+    {
+        Console.WriteLine("[{0} => {1}]", e.Input.MetaData.FileInfo.Name, e.Output?.Name);
+        Console.WriteLine("Bitrate: {0}", e.Bitrate);
+        Console.WriteLine("Fps: {0}", e.Fps);
+        Console.WriteLine("Frame: {0}", e.Frame);
+        Console.WriteLine("ProcessedDuration: {0}", e.ProcessedDuration);
+        Console.WriteLine("Size: {0} kb", e.SizeKb);
+        Console.WriteLine("TotalDuration: {0}\n", e.TotalDuration);
     }
 
     private static async Task<string> _SaveFileToDrive(IFormFile formFile)
