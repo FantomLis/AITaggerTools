@@ -5,6 +5,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AssemblyName>AITaggerSDK</AssemblyName>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>SDK for AITaggerTools</Description>
+        <RepositoryUrl>https://github.com/FantomLis/AITaggerTools</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
