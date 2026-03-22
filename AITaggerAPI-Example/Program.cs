@@ -178,15 +178,16 @@ internal class Program
     // This method will create image every "frameTime" second of video
     // Send it into model and then merge every result together
     // You can concat all unique tags into one entry and send it
-    private static async Task _PrepareVideo(string filePath, float frameTime, CancellationToken token)
+    private static async Task<string> _PrepareVideo(string filePath, float frameTime, CancellationToken token)
     {
-        Directory.CreateDirectory(filePath + ".d");
+        var path = filePath + ".d";
+        Directory.CreateDirectory(path);
         var inputFile = new InputFile (filePath);
         var duration = (await _Engine.GetMetaDataAsync(inputFile, token)).Duration.TotalSeconds;
         int frameNumber = 0;
         for (float j = 0; j < duration; j+=frameTime)
         {
-            var outputFile = new OutputFile(Path.Combine(filePath + ".d", $"{frameNumber++}.png"));
+            var outputFile = new OutputFile(Path.Combine(path, $"{frameNumber++}.png"));
             await _Engine.GetThumbnailAsync(inputFile, outputFile, new ConversionOptions()
             {
                 Seek = TimeSpan.FromSeconds(j)
