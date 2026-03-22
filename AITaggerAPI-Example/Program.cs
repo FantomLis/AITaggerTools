@@ -1,7 +1,5 @@
 using System.Text.Json;
 using AITaggerSDK.API.Responses;
-using Emgu.CV;
-using Emgu.CV.CvEnum;
 
 internal class Program
 {
@@ -176,17 +174,7 @@ internal class Program
     {
         Directory.CreateDirectory(filePath + ".d");
         int i = 0;
-        using (var video = new VideoCapture(filePath))
-        using (var img = new Mat())
-        {
-            while (video.Grab())
-            {
-                video.Retrieve(img);
-                var filename = Path.Combine(filePath+".d", $"{i}.jpg");
-                CvInvoke.Imwrite(filename, img);
-                i+=(int) Math.Floor(video.Get(CapProp.Fps));
-            }
-        }
+        
     }
 
     private static async Task<string> _SaveFileToDrive(IFormFile formFile)
