@@ -65,6 +65,7 @@ internal class Program
                             {
                                 File.Delete(fileRemDate.Key);
                                 remove.Add(fileRemDate.Key);
+                                Console.WriteLine($"File {fileRemDate.Key} timeout reached.");
                             }
                             catch (Exception ex)
                             {
@@ -88,13 +89,22 @@ internal class Program
     {
         IFormFile formFile = r.Request.Form.Files.First();
         
+        Log(r.Session.Id, $"Uploaded file {formFile.FileName}. Saving...");
+        
         var filePath = await _SaveFileToDrive(formFile);
         
         await r.Response.WriteAsync(Path.GetFileName(filePath));
+        
+        Log(r.Session.Id, $"Saved file as {filePath}.");
 
         _FileRemovingStruct.Add(filePath, DateTime.Now.AddMinutes(MaxFileStoreTimeInMin));
     }
-    
+
+    private static void Log(string id, string text)
+    {
+        Console.WriteLine($"{id}: {text}");
+    }
+
     private static async Task _Fetch(HttpContext r)
     {
         List<string>? input = (await r.Request.ReadFromJsonAsync<List<string>>())?.ToList();
@@ -102,9 +112,14 @@ internal class Program
         List<string> filepaths = new();
         foreach (var filePath in input)
         {
-            if (!File.Exists(Path.Combine(_TempFolder, filePath))) continue;
+            if (!File.Exists(Path.Combine(_TempFolder, filePath)))
+            {
+                Log(r.Session.Id, $"Failed to find file {filePath}.");
+                continue;
+            }
             // Prepare your files
             filepaths.Add(filePath);
+            Log(r.Session.Id, $"Found file {filePath}.");
         }
 
         var output = new List<SingleFile>();
@@ -114,9 +129,11 @@ internal class Program
             try
             {
                 // ... connect to AI model and get results
+                Log(r.Session.Id, $"Running model for file {filePath}.");
                 result = _RunModel(filePath);
                 
                 // ... parse results and put into results variable
+                Log(r.Session.Id, $"Processing result for file {filePath}.");
                 result = _ParseResults(result);
                 output.Add(new SingleFile(Path.GetFileName(filePath), result));
             
@@ -124,8 +141,8 @@ internal class Program
                 File.Delete(filePath);
             } // when failed, skip file
             catch (Exception ex)
-            {
-                Console.WriteLine(ex);
+            { 
+                Log(r.Session.Id, $"Error for file {filePath}: {ex}");
                 
                 // Send some error info 
                 // Please do not use ex.Message, send informative error message for client, not for developer
@@ -133,6 +150,7 @@ internal class Program
                 continue;
             }
         }
+        Log(r.Session.Id, $"Done.");
         await r.Response.WriteAsJsonAsync(new MultiFileResponse(ApiId)
         {
             Files = output.ToArray()
