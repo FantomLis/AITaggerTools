@@ -25,7 +25,7 @@ public static class TagManager
         return xmpMeta.ApplyUniqueTags(id, [tag]);
     }
 
-    private static bool DoesTagListExists(IXmpMeta xmpMeta)
+    public static bool DoesTagListExists(IXmpMeta xmpMeta)
     {
         return xmpMeta.DoesPropertyExist(XmpManager.DigikamNs, XmpManager.DigikamTagsList);
     }
@@ -36,19 +36,19 @@ public static class TagManager
         List<int> removedTags = new();
         for (int i = CountTags(xmpMeta); i >= 1; i--)
         {
-            var arrVal = GetTag(xmpMeta, i);
+            var arrVal = _GetTag(xmpMeta, i);
             if (arrVal.Split('/')[0] == id) removedTags.Add(i);
         }
         removedTags.ForEach(x => xmpMeta.DeleteArrayItem(XmpManager.DigikamNs, XmpManager.DigikamTagsList, x));
         return xmpMeta;
     }
 
-    private static string GetTag(IXmpMeta xmpMeta, int i)
+    private static string _GetTag(IXmpMeta xmpMeta, int i)
     {
         return xmpMeta.GetArrayItem(XmpManager.DigikamNs, XmpManager.DigikamTagsList, i).Value;
     }
 
-    private static int CountTags(IXmpMeta xmpMeta)
+    public static int CountTags(IXmpMeta xmpMeta)
     {
         return xmpMeta.CountArrayItems(XmpManager.DigikamNs, XmpManager.DigikamTagsList);
     }
@@ -85,7 +85,7 @@ public static class TagManager
         List<string> tags = new();
         for (int i = 1; i <= CountTags(xmpMeta); i++)
         {
-            var arrVal = GetTag(xmpMeta, i);
+            var arrVal = _GetTag(xmpMeta, i);
             if (arrVal.StartsWith(id+"/")) 
                 tags.Add(arrVal);
         }

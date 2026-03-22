@@ -20,7 +20,7 @@ internal class Program
     /// </summary>
     public static int MaxFileStoreTimeInMin = 60 * 4;
 
-    private static Dictionary<string, DateTime> FileRemovingStruct = new ();
+    private static Dictionary<string, DateTime> _FileRemovingStruct = new ();
 
     #region .env paramaters names
 
@@ -43,9 +43,9 @@ internal class Program
         if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
         app.UseHttpsRedirection();
         
-        app.MapPost("/desc/upload", Upload)
+        app.MapPost("/desc/upload", _Upload)
             .WithName("BulkFileUpload");
-        app.MapGet("/desc/fetch", Fetch)
+        app.MapGet("/desc/fetch", _Fetch)
             .WithName("BulkFileDescription");
         app.MapGet("/info", () => new EndpointInfo(ApiId))
             .WithName("ServerInfo");
@@ -55,9 +55,9 @@ internal class Program
             {
                 Thread.Sleep(60 * 1000);
                 List<string> remove = new();
-                lock (FileRemovingStruct)
+                lock (_FileRemovingStruct)
                 {
-                    foreach (var fileRemDate in FileRemovingStruct)
+                    foreach (var fileRemDate in _FileRemovingStruct)
                     {
                         if (fileRemDate.Value < DateTime.Now)
                         {
@@ -73,7 +73,7 @@ internal class Program
                         }
                     }
 
-                    remove.ForEach(x => FileRemovingStruct.Remove(x));
+                    remove.ForEach(x => _FileRemovingStruct.Remove(x));
                 }
             }
         });
@@ -84,18 +84,18 @@ internal class Program
     /// /desc/bulk/upload path for TaggerAPI bulk file upload. After uploading, files will be stored on server for 4 hours. Returns 
     /// </summary>
     /// <param name="r"></param>
-    private static async Task Upload(HttpContext r)
+    private static async Task _Upload(HttpContext r)
     {
         IFormFile formFile = r.Request.Form.Files.First();
         
-        var filePath = await SaveFileToDrive(formFile);
+        var filePath = await _SaveFileToDrive(formFile);
         
         await r.Response.WriteAsync(Path.GetFileName(filePath));
 
-        FileRemovingStruct.Add(filePath, DateTime.Now.AddMinutes(MaxFileStoreTimeInMin));
+        _FileRemovingStruct.Add(filePath, DateTime.Now.AddMinutes(MaxFileStoreTimeInMin));
     }
     
-    private static async Task Fetch(HttpContext r)
+    private static async Task _Fetch(HttpContext r)
     {
         List<string>? input = (await r.Request.ReadFromJsonAsync<List<string>>())?.ToList();
         if (input == null) return;
@@ -114,10 +114,10 @@ internal class Program
             try
             {
                 // ... connect to AI model and get results
-                result = RunModel(filePath);
+                result = _RunModel(filePath);
                 
                 // ... parse results and put into results variable
-                result = ParseResults(result);
+                result = _ParseResults(result);
                 output.Add(new SingleFile(Path.GetFileName(filePath), result));
             
                 // Deleting temp file
@@ -139,13 +139,13 @@ internal class Program
         });
     }
 
-    private static string ParseResults(string results)
+    private static string _ParseResults(string results)
     {
         // Result should be in format "tag1, tag2, ..."
         return results.Replace(";", ", ");
     }
 
-    private static string RunModel(string filePath)
+    private static string _RunModel(string filePath)
     {
         return "Tag;Tag2;Tag3";
     }
@@ -154,7 +154,7 @@ internal class Program
     // This method will create image every ~1 second of video
     // Send it into model and then merge every result together
     // You can concat all unique tags into one entry and send it
-    private static void PrepareVideo(string filePath)
+    private static void _PrepareVideo(string filePath)
     {
         Directory.CreateDirectory(filePath + ".d");
         int i = 0;
@@ -171,15 +171,15 @@ internal class Program
         }
     }
 
-    private static async Task<string> SaveFileToDrive(IFormFile formFile)
+    private static async Task<string> _SaveFileToDrive(IFormFile formFile)
     {
         byte[] fileBytes = new byte[formFile.Length];
         await formFile.OpenReadStream().ReadExactlyAsync(fileBytes);
-        var filePath = await WriteFileToDrive(formFile, fileBytes);
+        var filePath = await _WriteFileToDrive(formFile, fileBytes);
         return filePath;
     }
 
-    private static async Task<string> WriteFileToDrive(IFormFile formFile, byte[] file)
+    private static async Task<string> _WriteFileToDrive(IFormFile formFile, byte[] file)
     {
         string filePath = Path.Combine(_TempFolder, Path.GetRandomFileName() + "_" + formFile.FileName);
         Directory.CreateDirectory(_TempFolder);

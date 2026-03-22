@@ -322,7 +322,7 @@ internal static class Executable
 
     private static FileProcessingResult[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
     {
-        var apiResponse = GetDescriptionResults(filenames, endpointUrl);
+        var apiResponse = _GetDescriptionResults(filenames, endpointUrl);
 
         List<FileProcessingResult> statusList = new(filenames.Length);
         foreach (var filename in filenames)
@@ -376,7 +376,7 @@ IXmpMeta xmpMeta =
         return statusList.ToArray();
     }
 
-    private static MultiFileResponse GetDescriptionResults(string[] filenames, string endpointUrl)
+    private static MultiFileResponse _GetDescriptionResults(string[] filenames, string endpointUrl)
     {
         Dictionary<string, string> fileMap = new();
         float progress = 0, progressStep = 100f / filenames.Length;
