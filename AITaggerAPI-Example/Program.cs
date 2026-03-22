@@ -98,13 +98,13 @@ internal class Program
     {
         IFormFile formFile = r.Request.Form.Files.First();
         
-        Log(r.Session.Id, $"Uploaded file {formFile.FileName}. Saving...");
+        Log(r.TraceIdentifier, $"Uploaded file {formFile.FileName}. Saving...");
         
         var filePath = await _SaveFileToDrive(formFile);
         
         await r.Response.WriteAsync(Path.GetFileName(filePath));
         
-        Log(r.Session.Id, $"Saved file as {filePath}.");
+        Log(r.TraceIdentifier, $"Saved file as {filePath}.");
 
         _FileRemovingStruct.Add(filePath, DateTime.Now.AddMinutes(MaxFileStoreTimeInMin));
     }
@@ -123,12 +123,12 @@ internal class Program
         {
             if (!File.Exists(Path.Combine(_TempFolder, filePath)))
             {
-                Log(r.Session.Id, $"Failed to find file {filePath}.");
+                Log(r.TraceIdentifier, $"Failed to find file {filePath}.");
                 continue;
             }
             // Prepare your files
             filepaths.Add(filePath);
-            Log(r.Session.Id, $"Found file {filePath}.");
+            Log(r.TraceIdentifier, $"Found file {filePath}.");
         }
 
         var output = new List<SingleFile>();
@@ -138,11 +138,11 @@ internal class Program
             try
             {
                 // ... connect to AI model and get results
-                Log(r.Session.Id, $"Running model for file {filePath}.");
+                Log(r.TraceIdentifier, $"Running model for file {filePath}.");
                 result = _RunModel(filePath);
                 
                 // ... parse results and put into results variable
-                Log(r.Session.Id, $"Processing result for file {filePath}.");
+                Log(r.TraceIdentifier, $"Processing result for file {filePath}.");
                 result = _ParseResults(result);
                 output.Add(new SingleFile(Path.GetFileName(filePath), result));
             
@@ -151,7 +151,7 @@ internal class Program
             } // when failed, skip file
             catch (Exception ex)
             { 
-                Log(r.Session.Id, $"Error for file {filePath}: {ex}");
+                Log(r.TraceIdentifier, $"Error for file {filePath}: {ex}");
                 
                 // Send some error info 
                 // Please do not use ex.Message, send informative error message for client, not for developer
@@ -159,7 +159,7 @@ internal class Program
                 continue;
             }
         }
-        Log(r.Session.Id, $"Done.");
+        Log(r.TraceIdentifier, $"Done.");
         await r.Response.WriteAsJsonAsync(new MultiFileResponse(ApiId)
         {
             Files = output.ToArray()
