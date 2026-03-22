@@ -1,5 +1,8 @@
 using System.Text.Json;
 using AITaggerSDK.API.Responses;
+using FFmpeg.NET;
+using FFmpeg.NET.Events;
+using InputFile = FFmpeg.NET.InputFile;
 
 internal class Program
 {
@@ -8,6 +11,7 @@ internal class Program
     /// Sets API ID for TaggerAPI
     /// </summary>
     const string ApiId = "AITaggerAPI-Example";
+    static readonly Engine _Engine = new Engine(Environment.GetEnvironmentVariable(FFMPEGPATH) ?? "./ffmpeg.exe");
     /// <summary>
     /// Sets maximum form files size for request.
     /// </summary>
@@ -24,12 +28,16 @@ internal class Program
 
     private const string MAXFILESIZE = "AITAGGERAPI_MAXFILESIZE";
     private const string MAXFILESTORETIME = "AITAGGERAPI_MAXFILESTORETIME";
+    private const string FFMPEGPATH = "AITAGGERAPI_FFMPEG_PATH";
 
     #endregion
     
     private static string _TempFolder => Path.Combine(Directory.GetCurrentDirectory(), "temp");
     public static void Main(string[] args)
     {
+        _Engine.Progress += _OnProgressFFmpeg;
+        _Engine.Error += (sender, e) =>
+            Console.WriteLine("[{0} => {1}]: Error: {2}\n{3}", e.Input.Name, e.Output?.Name, e.Exception.ExitCode, e.Exception.InnerException);
         MaxFileSizeInMb = int.Parse(Environment.GetEnvironmentVariable(MAXFILESIZE) ?? MaxFileSizeInMb.ToString());
         MaxFileStoreTimeInMin = int.Parse(Environment.GetEnvironmentVariable(MAXFILESTORETIME) ?? MaxFileSizeInMb.ToString());
         var builder = WebApplication.CreateBuilder(args);
@@ -167,14 +175,34 @@ internal class Program
     }
 
     // Use this method if your model cannot tag videos and only works with images
-    // This method will create image every ~1 second of video
+    // This method will create image every "frameTime" second of video
     // Send it into model and then merge every result together
     // You can concat all unique tags into one entry and send it
-    private static void _PrepareVideo(string filePath)
+    private static async Task _PrepareVideo(string filePath, float frameTime, CancellationToken token)
     {
         Directory.CreateDirectory(filePath + ".d");
-        int i = 0;
-        
+        var inputFile = new InputFile (filePath);
+        var duration = (await _Engine.GetMetaDataAsync(inputFile, token)).Duration.TotalSeconds;
+        int frameNumber = 0;
+        for (float j = 0; j < duration; j+=frameTime)
+        {
+            var outputFile = new OutputFile(Path.Combine(filePath + ".d", $"{frameNumber++}.png"));
+            await _Engine.GetThumbnailAsync(inputFile, outputFile, new ConversionOptions()
+            {
+                Seek = TimeSpan.FromSeconds(j)
+            }, token);
+        }
+    }
+    
+    private static void _OnProgressFFmpeg(object sender, ConversionProgressEventArgs e)
+    {
+        Console.WriteLine("[{0} => {1}]", e.Input.MetaData.FileInfo.Name, e.Output?.Name);
+        Console.WriteLine("Bitrate: {0}", e.Bitrate);
+        Console.WriteLine("Fps: {0}", e.Fps);
+        Console.WriteLine("Frame: {0}", e.Frame);
+        Console.WriteLine("ProcessedDuration: {0}", e.ProcessedDuration);
+        Console.WriteLine("Size: {0} kb", e.SizeKb);
+        Console.WriteLine("TotalDuration: {0}\n", e.TotalDuration);
     }
 
     private static async Task<string> _SaveFileToDrive(IFormFile formFile)

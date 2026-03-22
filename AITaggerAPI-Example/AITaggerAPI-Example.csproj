@@ -16,4 +16,11 @@
       <ProjectReference Include="..\AITaggerSDK\AITaggerSDK.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="ffmpeg.exe" />
+      <Resource Include="ffmpeg.exe">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Resource>
+    </ItemGroup>
+
 </Project>

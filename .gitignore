@@ -491,3 +491,6 @@ riderModule.iml
 **/appsettings**.json
 **/launchSettings**.json
 **/temp/**
+# Ignore ffmpeg executable in AITaggerAPI-Example
+# You should add it yourself
+AITaggerAPI-Example/ffmpeg.exe
