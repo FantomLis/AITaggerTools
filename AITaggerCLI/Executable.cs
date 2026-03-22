@@ -28,7 +28,7 @@ internal static class Executable
         
         _SetupLogger();
         var cmd = _CreateTaggerCommand(out var inputPathsOption, out var endpointUrlOption, out var xmpFileSavePathOption, 
-            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption, out var ignoreInvalidExtensionsOption);
+            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption, out var ignoreInvalidExtensionsOption, out var limitFileCount);
         string? endpointUrl = null, clearTag = null;
         
         #endregion
@@ -50,6 +50,7 @@ internal static class Executable
             string[] paths = parseResult.GetValue(inputPathsOption)!;
             string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
             bool ignoreExt = parseResult.GetValue(ignoreInvalidExtensionsOption);
+            FileSendCount = parseResult.GetValue<int>(limitFileCount);
 
             List<string> fileList = _GetAllFiles(paths);
             
@@ -71,7 +72,7 @@ internal static class Executable
     
     private static RootCommand _CreateTaggerCommand(out Option<string[]> inputPathsOption, out Option<string?> endpointUrlOption,
         out Option<string?> xmpFileSavePathOption, out Option<string?> backupPathOption, out Option<bool> quickOption, out Option<bool> webuiOption,
-        out Option<string?> clearTagsOption, out Option<bool> ignoreInvalidExtensionsOption)
+        out Option<string?> clearTagsOption, out Option<bool> ignoreInvalidExtensionsOption, out Option<int> limitFileCount)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -127,6 +128,13 @@ internal static class Executable
             Required = false,
             DefaultValueFactory = _ => false
         };
+        limitFileCount = new("--limit-filecount", "-lf", "--limit")
+        {
+            Description =
+                "Limits how many files will be uploaded to endpoint before requesting result.",
+            Required = false,
+            DefaultValueFactory = _ => -1
+        };
 
         rootCommand.Options.Add(inputPathsOption);
         rootCommand.Options.Add(endpointUrlOption);
@@ -136,6 +144,7 @@ internal static class Executable
         rootCommand.Options.Add(webuiOption);
         rootCommand.Options.Add(clearTagsOption);
         rootCommand.Options.Add(ignoreInvalidExtensionsOption);
+        rootCommand.Options.Add(limitFileCount);
         return rootCommand;
     }
 
@@ -200,13 +209,14 @@ internal static class Executable
         }
 
         int fileCount = filenames.Length, fileSkipped = fileCount - unprocessedFiles.Count, currentFile = fileSkipped;
+        int fileSendCount = FileSendCount == -1 ? unprocessedFiles.Count : FileSendCount;
         while (unprocessedFiles.Count > 0)
         {
             try
             {
                 UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
                 var fileProcessingResults = 
-                    _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, FileSendCount)).ToArray(), endpointUrl, backup);
+                    _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, fileSendCount)).ToArray(), endpointUrl, backup);
                 foreach (var result in fileProcessingResults)
                 {
                     _LogFileProcessingResult(result);
