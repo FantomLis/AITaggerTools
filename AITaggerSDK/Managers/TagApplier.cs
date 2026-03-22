@@ -19,7 +19,7 @@ public static class TagApplier
 
     public static bool IsTagsAlreadyExists(this IXmpMeta xmpMeta, string? endpointId)
     {
-        return string.IsNullOrEmpty(endpointId) && xmpMeta.GetAllTaggerTags(endpointId).Length > 0;
+        return !string.IsNullOrEmpty(endpointId) && xmpMeta.GetAllTaggerTags(endpointId).Length > 0;
     }
 
     public static IXmpMeta ApplyTagsToFile(string name, string endpointId, string tagData)
