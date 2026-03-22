@@ -21,10 +21,19 @@ internal class Program
     public static int MaxFileStoreTimeInMin = 60 * 4;
 
     private static Dictionary<string, DateTime> FileRemovingStruct = new ();
+
+    #region .env paramaters names
+
+    private const string MAXFILESIZE = "AITAGGERAPI_MAXFILESIZE";
+    private const string MAXFILESTORETIME = "AITAGGERAPI_MAXFILESTORETIME";
+
+    #endregion
     
     private static string _TempFolder => Path.Combine(Directory.GetCurrentDirectory(), "temp");
     public static void Main(string[] args)
     {
+        MaxFileSizeInMb = int.Parse(Environment.GetEnvironmentVariable(MAXFILESIZE) ?? MaxFileSizeInMb.ToString());
+        MaxFileStoreTimeInMin = int.Parse(Environment.GetEnvironmentVariable(MAXFILESTORETIME) ?? MaxFileSizeInMb.ToString());
         var builder = WebApplication.CreateBuilder(args);
         builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxFileSizeInMb * 1024 * 1024);
 
