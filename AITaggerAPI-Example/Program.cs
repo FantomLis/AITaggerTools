@@ -36,6 +36,7 @@ internal class Program
     private static string _TempFolder => Path.Combine(Directory.GetCurrentDirectory(), "temp");
     public static void Main(string[] args)
     {
+        ResourceLimits.Memory = 32;
         _Engine.Progress += _OnProgressFFmpeg;
         _Engine.Error += (sender, e) =>
             Console.WriteLine("[{0} => {1}]: Error: {2}\n{3}", e.Input.Name, e.Output?.Name, e.Exception.ExitCode, e.Exception.InnerException);
@@ -206,7 +207,9 @@ internal class Program
     {
         var path = filePath + ".d";
         Directory.CreateDirectory(path);
-        using var images = new MagickImageCollection(filePath);
+        using var images = new MagickImageCollection();
+        using var file = new FileStream(filePath, FileMode.Open);
+        await images.ReadAsync(file, token);
         images.Coalesce(); 
         int frameCount = 0;
         foreach (var image in images)
