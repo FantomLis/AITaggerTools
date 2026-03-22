@@ -3,6 +3,7 @@ using AITaggerSDK.API.Responses;
 using FFmpeg.NET;
 using FFmpeg.NET.Events;
 using ImageMagick;
+using Imazen.WebP;
 using InputFile = FFmpeg.NET.InputFile;
 
 internal class Program
@@ -215,6 +216,26 @@ internal class Program
         foreach (var image in images)
         {
             await image.WriteAsync(Path.Combine(path, frameCount++ + ".png"), token);
+        }
+
+        return path;
+    }
+    
+    // Same as previous, but uses different webp wrapper for situations when ImageMagick crashes your host with memory overflow
+    private static async Task<string> _PrepareAnimatedImageWebp(string filePath, CancellationToken token)
+    {
+        var path = filePath + ".d";
+        Directory.CreateDirectory(path);
+        byte[] animatedWebP = await File.ReadAllBytesAsync(filePath, token);
+        using var decoder = new AnimDecoder(animatedWebP);
+        Console.WriteLine($"{decoder.Info.FrameCount} frames, {decoder.Info.Width}x{decoder.Info.Height}");
+        int frameCount = 0;
+        AnimFrame frame;
+        while (decoder.HasMoreFrames())
+        {
+            frame = decoder.GetNextFrame()!;
+            await File.WriteAllBytesAsync(Path.Combine(path, $"{frameCount++}.webp"), 
+                WebPEncoder.Encode(frame.Pixels, frame.Width, frame.Height, frame.Width * 4, WebPPixelFormat.Bgra, quality: 80), token);
         }
 
         return path;
