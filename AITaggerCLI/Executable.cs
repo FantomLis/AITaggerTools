@@ -219,7 +219,6 @@ internal static class Executable
                     _GenerateDescriptionForFiles(unprocessedFiles.Take(new Range(0, fileSendCount)).ToArray(), endpointUrl, backup);
                 foreach (var result in fileProcessingResults)
                 {
-                    _LogFileProcessingResult(result);
                     fileStatuses.Add(result);
                     unprocessedFiles.Remove(result.Filename);
                     currentFile++;
@@ -326,6 +325,8 @@ internal static class Executable
         List<FileProcessingResult> statusList = new(filenames.Length);
         foreach (var filename in filenames)
         {
+            var fileProcessResult = new FileProcessingResult(filename,
+                TaggerFileStatus.OK);
             try
             {
 #if DEBUG
@@ -335,19 +336,19 @@ internal static class Executable
                 var fileResult = apiResponse.Files.FirstOrDefault(x => x?.Filename == Path.GetFileName(filename), null);
                 if (fileResult == null)
                 {
-                    statusList.Add(FileProcessingResult.CreateErrorResult(filename,
-                        TaggerFileStatus.SERVER_RESPONSE_FILE_NOT_FOUND, "File was not found in server response."));
+                    fileProcessResult = FileProcessingResult.CreateErrorResult(filename,
+                        TaggerFileStatus.SERVER_RESPONSE_FILE_NOT_FOUND, "File was not found in server response.");
                     continue;
                 }
 
                 if (fileResult.IsError)
                 {
-                    statusList.Add(FileProcessingResult.CreateErrorResult(filename,
-                        TaggerFileStatus.SERVER_ERROR, fileResult.Error!));
+                    fileProcessResult = FileProcessingResult.CreateErrorResult(filename,
+                        TaggerFileStatus.SERVER_ERROR, fileResult.Error!);
                     continue;
                 }
 #if DEBUG
-IXmpMeta xmpMeta = 
+IXmpMeta xmpMeta =
 #endif
                 TagApplier.ApplyTagsToFile(filename.ToXmpFileName(), apiResponse.EndpointId, fileResult.TagsInfo!)
 #if DEBUG
@@ -358,13 +359,16 @@ IXmpMeta xmpMeta =
                 Log.Debug("All properties after update: ");
                 _DrawProperties(xmpMeta);
 #endif
-                statusList.Add(new FileProcessingResult(filename,
-                    TaggerFileStatus.OK));
             }
             catch (XmpException e)
             {
                 statusList.Add(FileProcessingResult.CreateErrorResult(filename,
                     TaggerFileStatus.INVALID_FILE, e.Message));
+            }
+            finally
+            {
+                statusList.Add(fileProcessResult);
+                _LogFileProcessingResult(fileProcessResult);
             }
         }
         return statusList.ToArray();
