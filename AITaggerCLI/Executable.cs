@@ -462,7 +462,7 @@ IXmpMeta xmpMeta =
         {
             if (File.GetAttributes(path).Equals(FileAttributes.Directory))
             {
-                files.AddRange(Directory.GetFiles(path));
+                files.AddRange(Directory.GetFiles(path, "*", SearchOption.AllDirectories));
             }
             else files.Add(path);
         }
