@@ -429,12 +429,25 @@ IXmpMeta xmpMeta =
     {
         Dictionary<string, string> fileMap = new();
         float progress = 0, progressStep = 100f / filenames.Length;
+        List<SingleFile> failedFiles = new();
         foreach (var filename in filenames)
         {
             if (!File.Exists(filename)) throw new ArgumentException($"File {filename} does not exist.");
             using var file = new FileStream(filename, FileMode.Open);
             Log.Information("Uploading files: " + UITools._BuildProgressBar((int)Math.Floor(progress)));
-            fileMap.Add(TaggerAPIManager.UploadFile(_httpClient, endpointUrl, file).Result,Path.GetFileName(file.Name));
+            try
+            {
+                fileMap.Add(TaggerAPIManager.UploadFile(_httpClient, endpointUrl, file).Result,Path.GetFileName(file.Name));
+            }
+            catch (AggregateException ex)
+            {
+                if (ex.InnerException?.GetType() == typeof(HttpRequestException))
+                {
+                    _FormattedError(string.Format(FAILED_TO_PROCESS_FILE, filename)+": "+SERVER_RESPOND_FAIL, ex.InnerException.Message);
+                    _DebugLogError(ex);
+                    failedFiles.Add(new SingleFile(filename, null, $"Server error: {ex.InnerException.Message}"));
+                }
+            }
             Log.Information($"File {filename} uploaded.");
             progress += progressStep;
         }
