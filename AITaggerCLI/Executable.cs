@@ -266,11 +266,12 @@ internal static class Executable
         int fileSendCount = FileSendCount == -1 ? unprocessedFiles.Count : FileSendCount;
         while (unprocessedFiles.Count > 0)
         {
+            var currentFilesArray = unprocessedFiles.Take(new Range(0, Math.Min(fileSendCount, unprocessedFiles.Count))).ToArray();
             try
             {
                 UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
                 Log.Information($"Uploading {fileSendCount} files...");
-                var currentFilesArray = unprocessedFiles.Take(new Range(0, fileSendCount)).ToArray();
+                
                 var fileProcessingResults = 
                     _GenerateDescriptionForFiles(currentFilesArray, endpointUrl, backup);
                 foreach (var result in fileProcessingResults)
