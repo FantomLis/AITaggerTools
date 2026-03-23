@@ -22,13 +22,16 @@ internal static class Executable
 
     #endregion
     public static int FileSendCount = 10;
+    public static int HTTPClientTimeout = 30;
+    private static HttpClient _httpClient;
     public static int Main(string[] args)
     {
         #region Program setup
         
         _SetupLogger();
         var cmd = _CreateTaggerCommand(out var inputPathsOption, out var endpointUrlOption, out var xmpFileSavePathOption, 
-            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption, out var ignoreInvalidExtensionsOption, out var limitFileCount);
+            out var backupPathOption, out var quickOption, out var webuiOption, out var clearTagsOption, out var ignoreInvalidExtensionsOption, 
+            out var limitFileCount, out var timeoutInMin);
         string? endpointUrl = null, clearTag = null;
         
         #endregion
@@ -52,7 +55,12 @@ internal static class Executable
                 string[] paths = parseResult.GetValue(inputPathsOption)!;
                 string? pathToBackup = parseResult.GetValue<string?>(backupPathOption);
                 bool ignoreExt = parseResult.GetValue(ignoreInvalidExtensionsOption);
+                HTTPClientTimeout = parseResult.GetValue(timeoutInMin);
                 FileSendCount = parseResult.GetValue<int>(limitFileCount);
+                _httpClient = new HttpClient()
+                {
+                    Timeout = TimeSpan.FromMinutes(HTTPClientTimeout)
+                };
 
                 List<string> fileList = _GetAllFiles(paths);
             
@@ -81,7 +89,7 @@ internal static class Executable
     
     private static RootCommand _CreateTaggerCommand(out Option<string[]> inputPathsOption, out Option<string?> endpointUrlOption,
         out Option<string?> xmpFileSavePathOption, out Option<string?> backupPathOption, out Option<bool> quickOption, out Option<bool> webuiOption,
-        out Option<string?> clearTagsOption, out Option<bool> ignoreInvalidExtensionsOption, out Option<int> limitFileCount)
+        out Option<string?> clearTagsOption, out Option<bool> ignoreInvalidExtensionsOption, out Option<int> limitFileCount, out Option<int> timeoutInMin)
     {
         RootCommand rootCommand = new("CLI-tool for AI tags applying.\n" +
                                       "Original purpose of that app is to allow custom AI models to be used for smart search in Immich. \n" +
@@ -144,6 +152,13 @@ internal static class Executable
             Required = false,
             DefaultValueFactory = _ => -1
         };
+        timeoutInMin = new("--timeout", "-t")
+        {
+            Description =
+                "Sets HTTP request timeout for all requests to endpoint in minutes.",
+            Required = false,
+            DefaultValueFactory = _ => 30
+        };
 
         rootCommand.Options.Add(inputPathsOption);
         rootCommand.Options.Add(endpointUrlOption);
@@ -154,6 +169,7 @@ internal static class Executable
         rootCommand.Options.Add(clearTagsOption);
         rootCommand.Options.Add(ignoreInvalidExtensionsOption);
         rootCommand.Options.Add(limitFileCount);
+        rootCommand.Options.Add(timeoutInMin);
         return rootCommand;
     }
     
@@ -266,7 +282,7 @@ internal static class Executable
             }
             catch (AggregateException ex)
             {
-                return _NetworkAggregateException(ex);
+                _NetworkAggregateException(ex);
             }
         }
         UITools._LogFileProgress(currentFile, fileCount, fileSkipped);
@@ -309,7 +325,7 @@ internal static class Executable
     private static List<string> _CreateFileList(string[] filenames, string endpointUrl, bool quick, bool ignoreInvalidExtensions, List<FileProcessingResult> fileStatuses)
     {
         List<string> unprocessedFiles = new(filenames.Length);
-        var endpointInfo = TaggerAPIManager.RequestEndpointInfo(TaggerAPIManager.Default, endpointUrl).Result;
+        var endpointInfo = TaggerAPIManager.RequestEndpointInfo(_httpClient, endpointUrl).Result;
         if (endpointInfo is null) throw new AggregateException(new HttpRequestException("Server info is null."));
         foreach (var filename in filenames)
         {
@@ -417,13 +433,13 @@ IXmpMeta xmpMeta =
             if (!File.Exists(filename)) throw new ArgumentException($"File {filename} does not exist.");
             using var file = new FileStream(filename, FileMode.Open);
             Log.Information("Uploading files: " + UITools._BuildProgressBar((int)Math.Floor(progress)));
-            fileMap.Add(TaggerAPIManager.UploadFile(TaggerAPIManager.Default, endpointUrl, file).Result,Path.GetFileName(file.Name));
+            fileMap.Add(TaggerAPIManager.UploadFile(_httpClient, endpointUrl, file).Result,Path.GetFileName(file.Name));
             Log.Information($"File {filename} uploaded.");
             progress += progressStep;
         }
         Log.Information("Uploading files: " + UITools._BuildProgressBar((int)Math.Floor(progress)));
         
-        var multiFileResponse = TaggerAPIManager.FetchDescription(TaggerAPIManager.Default, endpointUrl, fileMap.Keys).Result;
+        var multiFileResponse = TaggerAPIManager.FetchDescription(_httpClient, endpointUrl, fileMap.Keys).Result;
         try
         {
             foreach (var file in multiFileResponse.Files)
