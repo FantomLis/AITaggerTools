@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using System.Text;
 using AITaggerCLI.Exceptions;
 using AITaggerCLI.Tools;
 using AITaggerSDK;
@@ -357,18 +358,38 @@ internal static class Executable
                 unprocessedFiles.Add(filename);
                 continue;
             }
-            
-            if (!XmpManager.LoadFile(filename.ToXmpFileName())
-                    .IsTagsAlreadyExists(endpointInfo?.EndpointId))
+
+            try
             {
-                unprocessedFiles.Add(filename);
+                if (!XmpManager.LoadFile(filename.ToXmpFileName())
+                        .IsTagsAlreadyExists(endpointInfo?.EndpointId))
+                {
+                    unprocessedFiles.Add(filename);
+                }
+                else fileStatuses.Add(FileProcessingResult.CreateSkipped(filename));
             }
-            else fileStatuses.Add(FileProcessingResult.CreateSkipped(filename));
+            catch (XmpCore.XmpException ex)
+            {
+                fileStatuses.Add(FileProcessingResult.CreateErrorResult(filename, TaggerFileStatus.INVALID_FILE, _RecursiveExceptionMessage(ex)));
+            }
         }
 
         return unprocessedFiles;
     }
 
+    private static string _RecursiveExceptionMessage(Exception ex)
+    {
+        StringBuilder b = new($"{ex.Message}");
+        Exception? inner = ex.InnerException;
+        while (inner is not null)
+        {
+            b.Append($": {inner.Message}");
+            inner = inner.InnerException;
+        }
+
+        return b.ToString();
+    }
+    
     private static FileProcessingResult[] _GenerateDescriptionForFiles(string[] filenames, string endpointUrl, string? backupPath = null)
     {
         var apiResponse = _GetDescriptionResults(filenames, endpointUrl);
